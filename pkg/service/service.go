@@ -8,7 +8,7 @@ import (
 	"math/rand"
 	"time"
 
-	"github.com/dnsx2k/party-mq/pkg/rabbit"
+	"github.com/dnsx2k/partymq/pkg/rabbit"
 	"github.com/google/uuid"
 	"github.com/streadway/amqp"
 )
@@ -16,6 +16,7 @@ import (
 const MaxClients int = 50
 
 type SrvContext struct {
+	log              log.Logger
 	amqpOrchestrator rabbit.AmqpOrchestrator
 
 	// TODO: Check if keys map is assigned to default value or nil
@@ -117,31 +118,35 @@ func (srv *SrvContext) Send(msg []byte, key string) error {
 	return nil
 }
 
-// WatchHealth
-func (srv *SrvContext) WatchHealth(checkInterval, noConsumerTimeout time.Duration){
+// WatchHealth - interval checks whether any of queue got consumer, if not messages are transferred into another active client
+func (srv *SrvContext) WatchHealth(checkInterval, noConsumerTimeout time.Duration) {
 	ch, err := srv.amqpOrchestrator.GetChannel(rabbit.DirectionPrimary)
-	if err != nil{
+	if err != nil {
 		fmt.Println(err.Error())
 		return
 	}
 
-	for{
+	for {
 		time.Sleep(checkInterval)
-		// TODO: Handle error or at least log it
-		if len(srv.clients) == 0{
+		if len(srv.clients) == 0 {
 			continue
 		}
-		inspected, _ := srv.amqpOrchestrator.InspectQueues(srv.clients)
-		for k, v := range inspected{
-			if v.Consumers == 0{
-				go func(cID uuid.UUID){
+		queues := make(map[uuid.UUID]string, 0)
+		for k, v := range srv.clients {
+			queues[k] = v.QueueName
+		}
+		inspected, _ := srv.amqpOrchestrator.InspectQueues(queues)
+		for k, v := range inspected {
+			if v.Consumers == 0 {
+				go func(cID uuid.UUID) {
 					time.Sleep(noConsumerTimeout)
-					if c, ok := srv.clients[cID]; ok{
+					if c, ok := srv.clients[cID]; ok {
 						q, _ := ch.QueueInspect(c.QueueName)
-						if q.Consumers == 0{
+						if q.Consumers == 0 {
 							srv.UnbindClient(cID)
-							// TODO: Log error while transferring msgs
-							go srv.transfer(c.QueueName)
+							if err = srv.transfer(c.QueueName); err != nil {
+								srv.log.Printf("error occurred while transferring messages:%s", err)
+							}
 							return
 						}
 					}
@@ -151,41 +156,37 @@ func (srv *SrvContext) WatchHealth(checkInterval, noConsumerTimeout time.Duratio
 	}
 }
 
-func (srv *SrvContext) transfer(sourceQueue string) (error, <-chan error) {
+func (srv *SrvContext) transfer(sourceQueue string) error {
 	subCh, err := srv.amqpOrchestrator.GetChannel(rabbit.DirectionSub)
-	if err != nil{
-		return err, nil
+	if err != nil {
+		return err
 	}
 
-	// TODO: Check prefetch size
 	err = subCh.Qos(10, 0, false)
-	if err != nil{
-		return err, nil
+	if err != nil {
+		return err
 	}
 
 	msgs, err := subCh.Consume(sourceQueue, "party-mq-transfer", false, false, false, false, nil)
-	if err != nil{
-		return err, nil
+	if err != nil {
+		return err
 	}
 
-	errCh := make(chan error)
-	go func() {
-		for msg := range msgs{
-			m := map[string]interface{}{}
-			err := json.Unmarshal(msg.Body, &m)
-			if err != nil{
-				errCh <- err
-			}
-
-			key := m[srv.partitionKey].(string)
-			if err = srv.Send(msg.Body, key); err != nil{
-				errCh <- err
-			}
-			_ = msg.Ack(false)
+	for msg := range msgs {
+		m := map[string]interface{}{}
+		err := json.Unmarshal(msg.Body, &m)
+		if err != nil {
+			return err
 		}
-	}()
 
-	return nil, errCh
+		key := m[srv.partitionKey].(string)
+		if err = srv.Send(msg.Body, key); err != nil {
+			return err
+		}
+		_ = msg.Ack(false)
+	}
+
+	return nil
 }
 
 func getRandomInt(min, max int) int{
