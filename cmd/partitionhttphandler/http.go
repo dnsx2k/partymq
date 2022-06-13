@@ -20,6 +20,7 @@ func New(partySrv service.PartyOrchestrator) *HandlerCtx{
 
 func (c *HandlerCtx)RegisterRoute(router gin.IRouter) {
 	router.POST("/bind/:id", c.bindHandler)
+	router.POST("/unbind/:id", c.unbindHandler)
 }
 
 func (c *HandlerCtx) bindHandler(cGin *gin.Context){
@@ -31,4 +32,10 @@ func (c *HandlerCtx) bindHandler(cGin *gin.Context){
 		return
 	}
 	cGin.JSON(http.StatusOK, fmt.Sprintf("{\"queue\":%s}", queue))
+}
+func (c *HandlerCtx) unbindHandler(cGin *gin.Context) {
+	ID := cGin.Param("id")
+
+	c.partyOrchestrator.UnbindClient(ID)
+	cGin.Status(http.StatusOK)
 }

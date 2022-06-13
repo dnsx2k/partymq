@@ -31,6 +31,7 @@ type SrvContext struct {
 
 type PartyOrchestrator interface {
 	BindClient(clientID string) (string, error)
+	UnbindClient(ID string)
 	Send(msg []byte, key string) error
 	WatchHealth(checkInterval, noConsumerTimeout time.Duration)
 }
