@@ -4,30 +4,22 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log"
 	"math/rand"
 	"time"
 
 	"github.com/dnsx2k/partymq/pkg/rabbit"
-	"github.com/google/uuid"
 	"github.com/streadway/amqp"
 	"go.uber.org/zap"
 )
 
 const MaxClients int = 50
 
-type SrvContext struct {
+type srvContext struct {
 	logger           *zap.Logger
 	amqpOrchestrator rabbit.AmqpOrchestrator
-
-	// TODO: Check if keys map is assigned to default value or nil
-
-	partitionKey string
-
-	clients map[uuid.UUID]Client
-	uuids   []uuid.UUID
-
-	publishChan *amqp.Channel
+	partitionKey     string
+	clients          map[string]Client
+	publishChan      *amqp.Channel
 }
 
 type PartyOrchestrator interface {
@@ -37,31 +29,26 @@ type PartyOrchestrator interface {
 	WatchHealth(checkInterval, noConsumerTimeout time.Duration)
 }
 
-type Client struct {
-	QueueName string
-	RoutingKey string
-}
-
-func New(amqp rabbit.AmqpOrchestrator) (PartyOrchestrator, error){
-	pubChan, err := amqp.GetChannel(rabbit.DirectionPub)
-	if err != nil{
 func New(amqp rabbit.AmqpOrchestrator, logger *zap.Logger) (PartyOrchestrator, error) {
+	ch, err := amqp.GetChannel(rabbit.DirectionPub)
+	if err != nil {
 		return nil, err
 	}
-	return &SrvContext{
+	return &srvContext{
 		amqpOrchestrator: amqp,
-		publishChan:      pubChan,
+		logger:           logger,
+		publishChan:      ch,
 		clients:          make(map[string]Client),
 	}, nil
 }
 
-func(srv *SrvContext) BindClient(clientID string) (string, error){
-	if len(srv.clients) >= MaxClients{
+func (srv *srvContext) BindClient(clientID string) (string, error) {
+	if len(srv.clients) >= MaxClients {
 		return "", errors.New("max clients number already reached")
 	}
 
 	qName, err := srv.amqpOrchestrator.InitPartition(clientID)
-	if err != nil{
+	if err != nil {
 		return "", err
 	}
 	srv.logger.Info("client bound to partition", zap.String("id", clientID), zap.String("queue_name", qName))
@@ -78,11 +65,10 @@ func(srv *SrvContext) BindClient(clientID string) (string, error){
 
 func (srv *srvContext) UnbindClient(ID string) {
 	delete(srv.clients, ID)
-
 	srv.logger.Info("client unbound", zap.String("id", ID))
 }
 
-func (srv *SrvContext) Send(msg []byte, key string) error {
+func (srv *srvContext) Send(msg []byte, key string) error {
 	var routingKey string
 	ok, ID := srv.containsKey(key)
 	if !ok {
@@ -93,15 +79,15 @@ func (srv *SrvContext) Send(msg []byte, key string) error {
 
 	tmp := srv.amqpOrchestrator.GetMessageTemplate()
 	tmp.Body = msg
-	err := srv.publishChan.Publish(rabbit.PartyMqExchange, routingKey, false, false, tmp)
-	if err != nil{
+	if err := srv.publishChan.Publish(rabbit.PartyMqExchange, routingKey, false, false, tmp); err != nil {
 		return err
 	}
+
 	return nil
 }
 
 // WatchHealth - interval checks whether any of queue got consumer, if not messages are transferred into another active client
-func (srv *SrvContext) WatchHealth(checkInterval, noConsumerTimeout time.Duration) {
+func (srv *srvContext) WatchHealth(checkInterval, noConsumerTimeout time.Duration) {
 	ch, err := srv.amqpOrchestrator.GetChannel(rabbit.DirectionPrimary)
 	if err != nil {
 		srv.logger.Error(err.Error())
@@ -138,7 +124,7 @@ func (srv *SrvContext) WatchHealth(checkInterval, noConsumerTimeout time.Duratio
 	}
 }
 
-func (srv *SrvContext) transfer(sourceQueue string) error {
+func (srv *srvContext) transfer(sourceQueue string) error {
 	subCh, err := srv.amqpOrchestrator.GetChannel(rabbit.DirectionSub)
 	if err != nil {
 		return err
@@ -155,7 +141,7 @@ func (srv *SrvContext) transfer(sourceQueue string) error {
 	}
 
 	for msg := range msgs {
-		m := map[string]interface{}{}
+		m := map[string]any{}
 		err := json.Unmarshal(msg.Body, &m)
 		if err != nil {
 			return err
@@ -171,13 +157,15 @@ func (srv *SrvContext) transfer(sourceQueue string) error {
 	return nil
 }
 
-func getRandomInt(min, max int) int{
-	if min == 0 && max == 0{
+func getRandomInt(min, max int) int {
+	if min == 0 && max == 0 {
 		return 0
 	}
 	rand.Seed(time.Now().UnixNano())
 	return rand.Intn(max - min + 1)
-}func (srv *srvContext) containsKey(key string) (bool, string) {
+}
+
+func (srv *srvContext) containsKey(key string) (bool, string) {
 	for clientID, _ := range srv.clients {
 		if _, ok := srv.clients[clientID].keys[key]; ok {
 			return true, clientID

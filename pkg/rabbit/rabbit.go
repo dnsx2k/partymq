@@ -4,8 +4,6 @@ import (
 	"fmt"
 	"time"
 
-	party "github.com/dnsx2k/party-mq/pkg/service"
-	"github.com/google/uuid"
 	"github.com/streadway/amqp"
 	"go.uber.org/zap"
 )
@@ -129,7 +127,7 @@ func (ac *amqpCtx) GetMessageTemplate() amqp.Publishing {
 // InspectQueues - calls channel.QueueInspect for connected clients
 func (ac *amqpCtx) InspectQueues(m map[string]string) (map[string]amqp.Queue, error) {
 	ch, err := ac.GetChannel(DirectionPrimary)
-	if err != nil{
+	if err != nil {
 		return nil, err
 	}
 	out := make(map[string]amqp.Queue)

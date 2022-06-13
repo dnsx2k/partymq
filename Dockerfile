@@ -1,4 +1,4 @@
-FROM golang:1.16 AS build_base
+FROM golang:1.18 AS build_base
 WORKDIR /src
 COPY go.mod .
 COPY go.sum .
@@ -12,7 +12,7 @@ FROM build_base as builder
 WORKDIR /src
 COPY . .
 WORKDIR /src/cmd
-RUN go build -ldflags="-w -s" -installsuffix cgo -tags=jsoniter -o /out/worker .
+RUN go build -ldflags="-w -s" -installsuffix cgo -tags=jsoniter -o /out/partymq .
 
 FROM debian:stretch-slim as runner
 ENV DEBIAN_FRONTEND noninteractive
@@ -30,9 +30,9 @@ USER appuser
 
 FROM runner
 WORKDIR /app
-COPY --from=builder --chown=appuser /out/worker .
+COPY --from=builder --chown=appuser /out/partymq .
 EXPOSE 8085
 ENV GIN_MODE=release
 ENV LOG_SEVERITY=debug
 
-ENTRYPOINT ["/app/worker"]
+ENTRYPOINT ["/app/partymq"]

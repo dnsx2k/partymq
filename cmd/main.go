@@ -2,18 +2,19 @@ package main
 
 import (
 	"fmt"
-	"github.com/dnsx2k/party-mq/cmd/config"
-	"github.com/dnsx2k/party-mq/cmd/consumer"
-	"github.com/dnsx2k/party-mq/cmd/partitionhttphandler"
-	"github.com/dnsx2k/party-mq/pkg/rabbit"
-	"github.com/dnsx2k/party-mq/pkg/service"
-	"github.com/gin-gonic/gin"
-	"github.com/kelseyhightower/envconfig"
 	"go.uber.org/zap"
 	"log"
 	"os"
 	"sync"
 	"time"
+
+	"github.com/dnsx2k/partymq/cmd/config"
+	"github.com/dnsx2k/partymq/cmd/consumer"
+	"github.com/dnsx2k/partymq/cmd/partitionhttphandler"
+	"github.com/dnsx2k/partymq/pkg/rabbit"
+	"github.com/dnsx2k/partymq/pkg/service"
+	"github.com/gin-gonic/gin"
+	"github.com/kelseyhightower/envconfig"
 )
 
 func main(){
@@ -26,16 +27,16 @@ func main(){
 	os.Setenv("PARTYMQ_RABBIT_CS", local)
 
 	var appCfg config.Config
-	if err := envconfig.Process("partymq", &appCfg); err != nil{
+	if err := envconfig.Process("partymq", &appCfg); err != nil {
 		log.Fatal(err.Error())
 	}
 
 	amqpOrchestrator, err := rabbit.Init(appCfg.RabbitMqConnectionString)
-	if err != nil{
+	if err != nil {
 		log.Fatal(err.Error())
 	}
 
-	if err = amqpOrchestrator.CreateResources(); err != nil{
+	if err = amqpOrchestrator.CreateResources(); err != nil {
 		log.Fatal(err.Error())
 	}
 
@@ -61,18 +62,18 @@ func main(){
 	}()
 
 	hcInterval, err := time.ParseDuration(appCfg.HealthCheckInterval)
-	if err != nil{
+	if err != nil {
 		log.Fatal(err.Error())
 	}
 	noConsumerTimeout, err := time.ParseDuration(appCfg.NoConsumerTimeout)
-	if err != nil{
+	if err != nil {
 		log.Fatal(err.Error())
 	}
 
 	go partyOrchestrator.WatchHealth(hcInterval, noConsumerTimeout)
 
 	go func() {
-		if err := router.Run("127.0.0.1:8080"); err != nil{
+		if err := router.Run("127.0.0.1:8080"); err != nil {
 			fmt.Println(err.Error())
 		}
 	}()
