@@ -2,9 +2,7 @@ package main
 
 import (
 	"fmt"
-	"go.uber.org/zap"
 	"log"
-	"os"
 	"sync"
 	"time"
 
@@ -15,16 +13,14 @@ import (
 	"github.com/dnsx2k/partymq/pkg/service"
 	"github.com/gin-gonic/gin"
 	"github.com/kelseyhightower/envconfig"
+	"go.uber.org/zap"
 )
 
-func main(){
-	// TODO: Read config
+func main() {
 	logger, err := zap.NewProduction()
 	if err != nil {
 		log.Fatal(err)
 	}
-	local := "amqp://guest:guest@127.0.0.1:5672"
-	os.Setenv("PARTYMQ_RABBIT_CS", local)
 
 	var appCfg config.Config
 	if err := envconfig.Process("partymq", &appCfg); err != nil {
