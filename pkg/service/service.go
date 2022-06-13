@@ -22,6 +22,7 @@ type srvContext struct {
 	publishChan      *amqp.Channel
 }
 
+// PartyOrchestrator interface
 type PartyOrchestrator interface {
 	BindClient(clientID string) (string, error)
 	UnbindClient(ID string)
@@ -29,6 +30,7 @@ type PartyOrchestrator interface {
 	WatchHealth(checkInterval, noConsumerTimeout time.Duration)
 }
 
+// New - creation function for PartyOrchestrator
 func New(amqp rabbit.AmqpOrchestrator, logger *zap.Logger) (PartyOrchestrator, error) {
 	ch, err := amqp.GetChannel(rabbit.DirectionPub)
 	if err != nil {
@@ -42,6 +44,7 @@ func New(amqp rabbit.AmqpOrchestrator, logger *zap.Logger) (PartyOrchestrator, e
 	}, nil
 }
 
+// BindClient - creates new client, with bounded partition
 func (srv *srvContext) BindClient(clientID string) (string, error) {
 	if len(srv.clients) >= MaxClients {
 		return "", errors.New("max clients number already reached")
@@ -63,11 +66,13 @@ func (srv *srvContext) BindClient(clientID string) (string, error) {
 	return qName, nil
 }
 
+// UnbindClient - unbinds client, after messages won't be proxied through that client
 func (srv *srvContext) UnbindClient(ID string) {
 	delete(srv.clients, ID)
 	srv.logger.Info("client unbound", zap.String("id", ID))
 }
 
+// Send - sends message on partition based on passed key
 func (srv *srvContext) Send(msg []byte, key string) error {
 	var routingKey string
 	ok, ID := srv.containsKey(key)

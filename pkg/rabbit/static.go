@@ -5,6 +5,7 @@ const (
 	PartyMqExchange    string = "partymq.ex.write"
 )
 
+// Direction - type for amqp connection - PUB/SUB/PRIMARY
 type Direction string
 
 const (

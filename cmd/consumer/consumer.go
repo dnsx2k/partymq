@@ -13,6 +13,7 @@ type consumerCtx struct {
 	partitionKey      string
 }
 
+// New - creation function
 func New(partitionKey string, amqpOrch rabbit.AmqpOrchestrator, partyOrch service.PartyOrchestrator) *consumerCtx {
 	return &consumerCtx{
 		partitionKey:      partitionKey,
@@ -21,6 +22,7 @@ func New(partitionKey string, amqpOrch rabbit.AmqpOrchestrator, partyOrch servic
 	}
 }
 
+// Consume - consumes messages from source queue, forwards to partition
 func (cs *consumerCtx) Consume() (<-chan error, error) {
 	ch, err := cs.amqpOrchestrator.GetChannel(rabbit.DirectionSub)
 	if err != nil {

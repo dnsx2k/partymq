@@ -21,7 +21,7 @@ type amqpCtx struct {
 	logger      *zap.Logger
 }
 
-// Init - initializes amqp connections
+// Init - initializes amqp connections, handles connection close notification
 func Init(url string) (AmqpOrchestrator, error) {
 	notifyCloseCh := make(chan *amqp.Error)
 	actx := amqpCtx{
@@ -54,7 +54,7 @@ func Init(url string) (AmqpOrchestrator, error) {
 	return &actx, nil
 }
 
-// CreateResources - creates amqp resources
+// CreateResources - creates necessary amqp resources
 func (ac *amqpCtx) CreateResources() error {
 	ch, err := ac.connections[DirectionPrimary].Channel()
 	if err != nil {
