@@ -9,6 +9,7 @@ import (
 	"github.com/dnsx2k/party-mq/pkg/service"
 	"github.com/gin-gonic/gin"
 	"github.com/kelseyhightower/envconfig"
+	"go.uber.org/zap"
 	"log"
 	"os"
 	"sync"
@@ -17,6 +18,10 @@ import (
 
 func main(){
 	// TODO: Read config
+	logger, err := zap.NewProduction()
+	if err != nil {
+		log.Fatal(err)
+	}
 	local := "amqp://guest:guest@127.0.0.1:5672"
 	os.Setenv("PARTYMQ_RABBIT_CS", local)
 
@@ -34,8 +39,8 @@ func main(){
 		log.Fatal(err.Error())
 	}
 
-	partyOrchestrator, err := service.New(amqpOrchestrator)
-	if err != nil{
+	partyOrchestrator, err := service.New(amqpOrchestrator, logger)
+	if err != nil {
 		log.Fatal(err.Error())
 	}
 
@@ -45,13 +50,13 @@ func main(){
 
 	partyConsumer := consumer.New(appCfg.PartitionKey, amqpOrchestrator, partyOrchestrator)
 	chErr, err := partyConsumer.Consume()
-	if err != nil{
-		log.Fatal(err.Error())
+	if err != nil {
+		logger.Fatal(err.Error())
 	}
 
 	go func() {
-		for err = range chErr{
-			log.Println(err.Error())
+		for err = range chErr {
+			logger.Error(err.Error())
 		}
 	}()
 

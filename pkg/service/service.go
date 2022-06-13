@@ -11,12 +11,13 @@ import (
 	"github.com/dnsx2k/partymq/pkg/rabbit"
 	"github.com/google/uuid"
 	"github.com/streadway/amqp"
+	"go.uber.org/zap"
 )
 
 const MaxClients int = 50
 
 type SrvContext struct {
-	log              log.Logger
+	logger           *zap.Logger
 	amqpOrchestrator rabbit.AmqpOrchestrator
 
 	// TODO: Check if keys map is assigned to default value or nil
@@ -44,6 +45,7 @@ type Client struct {
 func New(amqp rabbit.AmqpOrchestrator) (PartyOrchestrator, error){
 	pubChan, err := amqp.GetChannel(rabbit.DirectionPub)
 	if err != nil{
+func New(amqp rabbit.AmqpOrchestrator, logger *zap.Logger) (PartyOrchestrator, error) {
 		return nil, err
 	}
 	return &SrvContext{
@@ -62,7 +64,7 @@ func(srv *SrvContext) BindClient(clientID string) (string, error){
 	if err != nil{
 		return "", err
 	}
-	log.Printf("client %s binded to partition: %s", clientID, qName)
+	srv.logger.Info("client bound to partition", zap.String("id", clientID), zap.String("queue_name", qName))
 
 	routingKey := fmt.Sprintf("party-mq-partition-key-%s", clientID)
 	srv.clients[clientID] = Client{
@@ -77,6 +79,7 @@ func(srv *SrvContext) BindClient(clientID string) (string, error){
 func (srv *srvContext) UnbindClient(ID string) {
 	delete(srv.clients, ID)
 
+	srv.logger.Info("client unbound", zap.String("id", ID))
 }
 
 func (srv *SrvContext) Send(msg []byte, key string) error {
@@ -101,7 +104,7 @@ func (srv *SrvContext) Send(msg []byte, key string) error {
 func (srv *SrvContext) WatchHealth(checkInterval, noConsumerTimeout time.Duration) {
 	ch, err := srv.amqpOrchestrator.GetChannel(rabbit.DirectionPrimary)
 	if err != nil {
-		fmt.Println(err.Error())
+		srv.logger.Error(err.Error())
 		return
 	}
 
@@ -123,8 +126,8 @@ func (srv *SrvContext) WatchHealth(checkInterval, noConsumerTimeout time.Duratio
 						q, _ := ch.QueueInspect(c.queueName)
 						if q.Consumers == 0 {
 							srv.UnbindClient(cID)
-							if err = srv.transfer(c.QueueName); err != nil {
-								srv.log.Printf("error occurred while transferring messages:%s", err)
+							if err = srv.transfer(c.queueName); err != nil {
+								srv.logger.Error("error occurred while transferring messages", zap.Error(err))
 							}
 							return
 						}

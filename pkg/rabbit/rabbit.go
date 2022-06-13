@@ -7,6 +7,7 @@ import (
 	party "github.com/dnsx2k/party-mq/pkg/service"
 	"github.com/google/uuid"
 	"github.com/streadway/amqp"
+	"go.uber.org/zap"
 )
 
 type AmqpOrchestrator interface {
@@ -19,6 +20,7 @@ type AmqpOrchestrator interface {
 
 type amqpCtx struct {
 	connections map[Direction]*amqp.Connection
+	logger      *zap.Logger
 }
 
 // Init - initializes amqp connections
@@ -134,6 +136,7 @@ func (ac *amqpCtx) InspectQueues(m map[string]string) (map[string]amqp.Queue, er
 	for k, v := range m {
 		q, err := ch.QueueInspect(v)
 		if err != nil {
+			ac.logger.Error(err.Error(), zap.String("clientID", k))
 			out[k] = amqp.Queue{}
 			continue
 		}
