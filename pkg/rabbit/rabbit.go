@@ -14,7 +14,7 @@ type AmqpOrchestrator interface {
 	GetChannel(d Direction) (*amqp.Channel, error)
 	GetMessageTemplate() amqp.Publishing
 	InitPartition(clientID string) (string, error)
-	InspectQueues(m map[uuid.UUID]party.Client) (map[uuid.UUID]amqp.Queue, error)
+	InspectQueues(m map[string]string) (map[string]amqp.Queue, error)
 }
 
 type amqpCtx struct {
@@ -124,15 +124,19 @@ func (ac *amqpCtx) GetMessageTemplate() amqp.Publishing {
 	}
 }
 
-func (ac *amqpCtx)InspectQueues(m map[uuid.UUID]party.Client) (map[uuid.UUID]amqp.Queue, error){
+// InspectQueues - calls channel.QueueInspect for connected clients
+func (ac *amqpCtx) InspectQueues(m map[string]string) (map[string]amqp.Queue, error) {
 	ch, err := ac.GetChannel(DirectionPrimary)
 	if err != nil{
 		return nil, err
 	}
-	out := make(map[uuid.UUID]amqp.Queue)
-	for k, v := range m{
-		// TODO: Handle error or at least log it
-		q, _ := ch.QueueInspect(v.QueueName)
+	out := make(map[string]amqp.Queue)
+	for k, v := range m {
+		q, err := ch.QueueInspect(v)
+		if err != nil {
+			out[k] = amqp.Queue{}
+			continue
+		}
 		out[k] = q
 	}
 	return out, nil
