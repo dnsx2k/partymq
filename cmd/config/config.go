@@ -1,9 +1,21 @@
 package config
 
+import "github.com/ardanlabs/conf/v3"
+
 // Config - app config
 type Config struct {
-	RabbitMqConnectionString string `envconfig:"partymq_rabbit_cs" required:"true"`
-	PartitionKey             string `envconfig:"partymq_partition_key" default:"id"`
-	HealthCheckInterval      string `envconfig:"partymq_health_check_interval" default:"30s"`
-	NoConsumerTimeout        string `envconfig:"partymq_no_consumer_timeout" default:"10s"`
+	conf.Version
+	RabbitConnectionString string `conf:"env:rabbit_cs, default:amqp://guest:guest@localhost:5672"`
+	Source                 struct {
+		Exchange string `conf:"default:party.mq.topic"`
+		Key      string `conf:"default:#"`
+	}
+	KeyConfig struct {
+		Source string `conf:"default:header, help:points to a source for fetching partition key, possible values are: header, body"`
+		Key    string `conf:"default:partitionKey, help:key for partitionKey value"`
+	}
+	MqGuard struct {
+		HealthCheckInterval string `conf:"default:1060s, help:interval for scanning abandoned queues"`
+		NoConsumerTimeout   string `conf:"default:30s, help:span that queue can remain  without consumer"`
+	}
 }

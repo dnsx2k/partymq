@@ -2,18 +2,18 @@ package rabbit
 
 import (
 	"fmt"
-	"time"
 
+	"github.com/dnsx2k/partymq/pkg/helpers"
 	"github.com/streadway/amqp"
 	"go.uber.org/zap"
 )
 
 type AmqpOrchestrator interface {
-	CreateResources() error
+	CreateResources(sourceExchange, sourceRouting string) error
 	GetChannel(d Direction) (*amqp.Channel, error)
-	GetMessageTemplate() amqp.Publishing
-	InitPartition(clientID string) (string, error)
-	InspectQueues(m map[string]string) (map[string]amqp.Queue, error)
+	InitPartition(clientID string) (Partition, error)
+	InspectQueues(queues []string) (map[string]amqp.Queue, error)
+	InspectQueue(queueName string) (amqp.Queue, error)
 }
 
 type amqpCtx struct {
@@ -55,7 +55,7 @@ func Init(url string) (AmqpOrchestrator, error) {
 }
 
 // CreateResources - creates necessary amqp resources
-func (ac *amqpCtx) CreateResources() error {
+func (ac *amqpCtx) CreateResources(sourceExchange, sourceRouting string) error {
 	ch, err := ac.connections[DirectionPrimary].Channel()
 	if err != nil {
 		return err
@@ -68,30 +68,39 @@ func (ac *amqpCtx) CreateResources() error {
 	if _, err = ch.QueueDeclare(PartyMqBufferQueue, false, false, false, false, nil); err != nil {
 		return err
 	}
+	if err = ch.QueueBind(PartyMqBufferQueue, sourceRouting, sourceExchange, true, nil); err != nil {
+		return err
+	}
 
 	return nil
 }
 
-// InitPartition - initializes new partition for client, returns name of created and bounded queue
-func (ac *amqpCtx) InitPartition(clientID string) (string, error) {
-	ch, err := ac.connections[DirectionPrimary].Channel()
-	if err != nil {
-		return "", err
-	}
-	defer ch.Close()
+type Partition struct {
+	Queue      string
+	RoutingKey string
+}
 
-	queue, err := ch.QueueDeclare(fmt.Sprintf("partymq.q.partition-%s", clientID), false, false, false, false, nil)
+// InitPartition - initializes new partition for client, returns name of created and bounded queue
+func (ac *amqpCtx) InitPartition(hostname string) (Partition, error) {
+	ch, err := ac.connections[DirectionPrimary].Channel()
+	defer ch.Close()
 	if err != nil {
-		return "", err
+		return Partition{}, err
 	}
-	err = ch.QueueBind(queue.Name, fmt.Sprintf("partymq.r.partition-%s", clientID), PartyMqExchange, false, nil)
+
+	// queue naming should be configurable in order to satisfy user's standards
+	queue, err := ch.QueueDeclare(helpers.QueueFromHostname(hostname), false, false, false, false, nil)
+	if err != nil {
+		return Partition{}, err
+	}
+	err = ch.QueueBind(queue.Name, fmt.Sprintf("party-mq-partition-key-%s", hostname), PartyMqExchange, false, nil)
 	if err != nil {
 		if _, err := ch.QueueDelete(queue.Name, false, false, false); err != nil {
-			return "", err
+			return Partition{}, err
 		}
 	}
 
-	return queue.Name, nil
+	return Partition{queue.Name, fmt.Sprintf("party-mq-partition-key-%s", hostname)}, nil
 }
 
 // GetChannel - based on passed direction create new amqp channel
@@ -104,43 +113,37 @@ func (ac *amqpCtx) GetChannel(d Direction) (*amqp.Channel, error) {
 	return ch, nil
 }
 
-// GetMessageTemplate - returns amqp msg boilerplate
-func (ac *amqpCtx) GetMessageTemplate() amqp.Publishing {
-	return amqp.Publishing{
-		Headers:         nil,
-		ContentType:     "",
-		ContentEncoding: "",
-		DeliveryMode:    0,
-		Priority:        0,
-		CorrelationId:   "",
-		ReplyTo:         "",
-		Expiration:      "",
-		MessageId:       "",
-		Timestamp:       time.Now(),
-		Type:            "",
-		UserId:          "",
-		AppId:           "party-mq",
-		Body:            nil,
-	}
-}
-
 // InspectQueues - calls channel.QueueInspect for connected clients
-func (ac *amqpCtx) InspectQueues(m map[string]string) (map[string]amqp.Queue, error) {
+func (ac *amqpCtx) InspectQueues(queues []string) (map[string]amqp.Queue, error) {
 	ch, err := ac.GetChannel(DirectionPrimary)
 	if err != nil {
 		return nil, err
 	}
 	out := make(map[string]amqp.Queue)
-	for k, v := range m {
-		q, err := ch.QueueInspect(v)
+	for i := range queues {
+		q, err := ch.QueueInspect(queues[i])
 		if err != nil {
-			ac.logger.Error(err.Error(), zap.String("clientID", k))
-			out[k] = amqp.Queue{}
+			ac.logger.Error(err.Error(), zap.String("queue", queues[i]))
+			out[queues[i]] = amqp.Queue{}
 			continue
 		}
-		out[k] = q
+		out[queues[i]] = q
 	}
 	return out, nil
+}
+
+// InspectQueue - calls channel.QueueInspect for connected clients
+func (ac *amqpCtx) InspectQueue(queueName string) (amqp.Queue, error) {
+	ch, err := ac.GetChannel(DirectionPrimary)
+	if err != nil {
+		return amqp.Queue{}, err
+	}
+	q, err := ch.QueueInspect(queueName)
+	if err != nil {
+		return amqp.Queue{}, err
+	}
+
+	return q, nil
 }
 
 func (ac *amqpCtx) handleConnectionClose(c <-chan *amqp.Error) {
