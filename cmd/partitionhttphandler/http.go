@@ -3,10 +3,8 @@ package partitionhttphandler
 import (
 	"net/http"
 
-	"github.com/dnsx2k/partymq/pkg/helpers"
 	"github.com/dnsx2k/partymq/pkg/partition"
 	"github.com/dnsx2k/partymq/pkg/rabbit"
-	"github.com/dnsx2k/partymq/pkg/transfer"
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
 )
@@ -14,13 +12,12 @@ import (
 type HandlerCtx struct {
 	amqpOrchestrator rabbit.AmqpOrchestrator
 	cache            partition.Cache
-	transferService  transfer.Transferer
 	logger           *zap.Logger
 }
 
-func New(amqpOrchestrator rabbit.AmqpOrchestrator, cache partition.Cache, transferSrv transfer.Transferer, logger *zap.Logger) *HandlerCtx {
+func New(amqpOrchestrator rabbit.AmqpOrchestrator, cache partition.Cache, logger *zap.Logger) *HandlerCtx {
 	return &HandlerCtx{
-		amqpOrchestrator: amqpOrchestrator, cache: cache, transferService: transferSrv, logger: logger,
+		amqpOrchestrator: amqpOrchestrator, cache: cache, logger: logger,
 	}
 }
 
@@ -48,7 +45,7 @@ func (c *HandlerCtx) bindHandler(cGin *gin.Context) {
 
 func (c *HandlerCtx) unbindHandler(cGin *gin.Context) {
 	hostname := cGin.Param("hostname")
-	c.transferService.Transfer(helpers.QueueFromHostname(hostname))
+	c.cache.Delete(hostname)
 
 	cGin.Status(http.StatusOK)
 }

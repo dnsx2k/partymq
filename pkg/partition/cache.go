@@ -4,9 +4,6 @@ import (
 	"hash/fnv"
 	"math"
 	"sync"
-
-	"github.com/dnsx2k/partymq/pkg/helpers"
-	"github.com/dnsx2k/partymq/pkg/transfer"
 )
 
 var anyClients = false
@@ -21,27 +18,19 @@ type Cache interface {
 }
 
 type cacheCtx struct {
-	keys            map[string]uint32
-	transferService transfer.Transferer
-	counter         map[uint32]int
-	clients         map[uint32]Partition
-	mutex           sync.RWMutex
+	keys    map[string]uint32
+	counter map[uint32]int
+	clients map[uint32]Partition
+	mutex   sync.RWMutex
 }
 
-func NewCache(transferSrv transfer.Transferer) Cache {
+func NewCache() Cache {
 	cCtx := cacheCtx{
-		transferService: transferSrv,
-		keys:            make(map[string]uint32),
-		counter:         make(map[uint32]int),
-		clients:         make(map[uint32]Partition),
-		mutex:           sync.RWMutex{},
+		keys:    make(map[string]uint32),
+		counter: make(map[uint32]int),
+		clients: make(map[uint32]Partition),
+		mutex:   sync.RWMutex{},
 	}
-	go func() {
-		for {
-			queue := <-cCtx.transferService.WaitForTransfer()
-			cCtx.delete(helpers.HostnameFromQueue(queue))
-		}
-	}()
 
 	return &cCtx
 }

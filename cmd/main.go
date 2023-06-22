@@ -7,17 +7,14 @@ import (
 	"log"
 	"os"
 	"sync"
-	"time"
 
 	"github.com/ardanlabs/conf/v3"
 	"github.com/dnsx2k/partymq/cmd/config"
 	"github.com/dnsx2k/partymq/cmd/consumer"
 	"github.com/dnsx2k/partymq/cmd/partitionhttphandler"
-	"github.com/dnsx2k/partymq/pkg/mqguard"
 	"github.com/dnsx2k/partymq/pkg/partition"
 	"github.com/dnsx2k/partymq/pkg/rabbit"
 	"github.com/dnsx2k/partymq/pkg/sender"
-	"github.com/dnsx2k/partymq/pkg/transfer"
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
 )
@@ -47,31 +44,17 @@ func main() {
 		log.Fatal(err.Error())
 	}
 
-	transferSrv := transfer.New(logger)
-	cache := partition.NewCache(transferSrv)
-
-	hcInterval, err := time.ParseDuration(appCfg.MqGuard.HealthCheckInterval)
-	if err != nil {
-		log.Fatal(err.Error())
-	}
-	noConsumerTimeout, err := time.ParseDuration(appCfg.MqGuard.NoConsumerTimeout)
-	if err != nil {
-		log.Fatal(err.Error())
-	}
-	guardian := mqguard.New(hcInterval, noConsumerTimeout, transferSrv, logger, cache, amqpOrchestrator)
-	if err := guardian.Watch(); err != nil {
-		log.Fatal(err.Error())
-	}
-
 	ch, err := amqpOrchestrator.GetChannel(rabbit.DirectionPub)
 	if err != nil {
 		log.Fatal(err.Error())
 	}
+
+	cache := partition.NewCache()
 	senderSrv, err := sender.New(cache, ch, logger)
 
 	// AMQP
 
-	partyConsumer := consumer.New(amqpOrchestrator, senderSrv, transferSrv, logger, appCfg.KeyConfig.Source, appCfg.KeyConfig.Key)
+	partyConsumer := consumer.New(amqpOrchestrator, senderSrv, logger, appCfg.KeyConfig.Source, appCfg.KeyConfig.Key)
 	if err := partyConsumer.Start(context.Background()); err != nil {
 		logger.Fatal(err.Error())
 	}
@@ -79,7 +62,7 @@ func main() {
 	// HTTP
 
 	router := gin.Default()
-	handler := partitionhttphandler.New(amqpOrchestrator, cache, transferSrv, logger)
+	handler := partitionhttphandler.New(amqpOrchestrator, cache, logger)
 	handler.RegisterRoute(router)
 
 	go func() {

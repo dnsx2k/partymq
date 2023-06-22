@@ -12,8 +12,6 @@ type AmqpOrchestrator interface {
 	CreateResources(sourceExchange, sourceRouting string) error
 	GetChannel(d Direction) (*amqp.Channel, error)
 	InitPartition(clientID string) (Partition, error)
-	InspectQueues(queues []string) (map[string]amqp.Queue, error)
-	InspectQueue(queueName string) (amqp.Queue, error)
 }
 
 type amqpCtx struct {
@@ -111,39 +109,6 @@ func (ac *amqpCtx) GetChannel(d Direction) (*amqp.Channel, error) {
 	}
 
 	return ch, nil
-}
-
-// InspectQueues - calls channel.QueueInspect for connected clients
-func (ac *amqpCtx) InspectQueues(queues []string) (map[string]amqp.Queue, error) {
-	ch, err := ac.GetChannel(DirectionPrimary)
-	if err != nil {
-		return nil, err
-	}
-	out := make(map[string]amqp.Queue)
-	for i := range queues {
-		q, err := ch.QueueInspect(queues[i])
-		if err != nil {
-			ac.logger.Error(err.Error(), zap.String("queue", queues[i]))
-			out[queues[i]] = amqp.Queue{}
-			continue
-		}
-		out[queues[i]] = q
-	}
-	return out, nil
-}
-
-// InspectQueue - calls channel.QueueInspect for connected clients
-func (ac *amqpCtx) InspectQueue(queueName string) (amqp.Queue, error) {
-	ch, err := ac.GetChannel(DirectionPrimary)
-	if err != nil {
-		return amqp.Queue{}, err
-	}
-	q, err := ch.QueueInspect(queueName)
-	if err != nil {
-		return amqp.Queue{}, err
-	}
-
-	return q, nil
 }
 
 func (ac *amqpCtx) handleConnectionClose(c <-chan *amqp.Error) {
