@@ -4,6 +4,7 @@ import (
 	"fmt"
 )
 
-func QueueFromHostname(hostname string) string {
-	return fmt.Sprintf("partymq.q.partition-%s", hostname)
+// TODO: Create routing key standard, pattern
+func BuildRoutingKey(hostname string) string {
+	return fmt.Sprintf("partymq.partition-%s", hostname)
 }

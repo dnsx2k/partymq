@@ -3,47 +3,65 @@ package partitionhttphandler
 import (
 	"net/http"
 
+	"github.com/dnsx2k/partymq/pkg/heartbeat"
+	"github.com/dnsx2k/partymq/pkg/helpers"
 	"github.com/dnsx2k/partymq/pkg/partition"
-	"github.com/dnsx2k/partymq/pkg/rabbit"
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
 )
 
 type HandlerCtx struct {
-	amqpOrchestrator rabbit.AmqpOrchestrator
-	cache            partition.Cache
-	logger           *zap.Logger
+	cache     partition.Cache
+	heartbeat heartbeat.HeartBeater
+	logger    *zap.Logger
 }
 
-func New(amqpOrchestrator rabbit.AmqpOrchestrator, cache partition.Cache, logger *zap.Logger) *HandlerCtx {
+func New(cache partition.Cache, heartbeat heartbeat.HeartBeater, logger *zap.Logger) *HandlerCtx {
 	return &HandlerCtx{
-		amqpOrchestrator: amqpOrchestrator, cache: cache, logger: logger,
+		cache: cache, logger: logger,
+		heartbeat: heartbeat,
 	}
 }
 
 func (c *HandlerCtx) RegisterRoute(router gin.IRouter) {
-	router.POST("/bind/:hostname", c.bindHandler)
-	router.POST("/unbind/:hostname", c.unbindHandler)
+	router.POST("/:hostname/bind", c.bind)
+	router.POST("/:hostname/ready", c.ready)
+	router.POST("/heartbeat/:hostname")
+	router.POST("/unbind/:hostname", c.unbind)
 }
 
-func (c *HandlerCtx) bindHandler(cGin *gin.Context) {
+func (c *HandlerCtx) bind(cGin *gin.Context) {
 	hostname := cGin.Param("hostname")
 
-	p, err := c.amqpOrchestrator.InitPartition(hostname)
-	if err != nil {
-		cGin.AbortWithStatusJSON(http.StatusInternalServerError, err.Error())
-	}
-	c.cache.AddClient(hostname, p.Queue, p.RoutingKey)
-	c.logger.Info("client bound to partition", zap.String("hostname", hostname), zap.String("queue_name", p.Queue))
+	routingKey := helpers.BuildRoutingKey(hostname)
+	c.cache.AddPending(hostname, routingKey)
+	c.logger.Info("client requested a binding", zap.String("hostname", hostname), zap.String("routing_key", routingKey))
 
-	if err != nil {
-		cGin.AbortWithStatusJSON(http.StatusInternalServerError, err.Error())
-		return
-	}
-	cGin.JSON(http.StatusOK, gin.H{"queue": p.Queue})
+	cGin.JSON(http.StatusOK, gin.H{"routingKey": routingKey})
 }
 
-func (c *HandlerCtx) unbindHandler(cGin *gin.Context) {
+func (c *HandlerCtx) ready(cGin *gin.Context) {
+	hostname := cGin.Param("hostname")
+
+	if ok := c.cache.AddClient(hostname); !ok {
+		// TODO: Precise error message
+		cGin.AbortWithStatusJSON(http.StatusBadRequest, "no such a hostname among pending clients")
+		return
+	}
+	c.heartbeat.Beat(hostname)
+	c.logger.Info("client successfully bound", zap.String("hostname", hostname))
+
+	cGin.Status(http.StatusOK)
+}
+
+func (c *HandlerCtx) beat(cGin *gin.Context) {
+	hostname := cGin.Param("hostname")
+	c.heartbeat.Beat(hostname)
+
+	cGin.Status(http.StatusOK)
+}
+
+func (c *HandlerCtx) unbind(cGin *gin.Context) {
 	hostname := cGin.Param("hostname")
 	c.cache.Delete(hostname)
 

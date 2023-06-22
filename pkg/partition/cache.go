@@ -9,18 +9,20 @@ import (
 var anyClients = false
 
 type Cache interface {
-	GetKey(key string) (Partition, bool)
+	GetKey(key string) (string, bool)
 	AnyClients() bool
-	GetPartitions() []Partition
-	AddClient(hostname, queueName, routingKey string)
-	AssignToFreePartition(key string) Partition
+	GetPartitions() []string
+	AddClient(hostname string) bool
+	AddPending(hostname, routingKey string)
+	AssignToFreePartition(key string) string
 	Delete(hostname string)
 }
 
 type cacheCtx struct {
 	keys    map[string]uint32
 	counter map[uint32]int
-	clients map[uint32]Partition
+	clients map[uint32]string
+	pending map[string]string
 	mutex   sync.RWMutex
 }
 
@@ -28,19 +30,20 @@ func NewCache() Cache {
 	cCtx := cacheCtx{
 		keys:    make(map[string]uint32),
 		counter: make(map[uint32]int),
-		clients: make(map[uint32]Partition),
+		clients: make(map[uint32]string),
+		pending: make(map[string]string),
 		mutex:   sync.RWMutex{},
 	}
 
 	return &cCtx
 }
 
-func (cCtx *cacheCtx) GetKey(key string) (Partition, bool) {
+func (cCtx *cacheCtx) GetKey(key string) (string, bool) {
 	cCtx.mutex.RLock()
 	defer cCtx.mutex.RUnlock()
 	h, ok := cCtx.keys[key]
 	if !ok {
-		return Partition{}, false
+		return "", false
 	}
 
 	return cCtx.clients[h], true
@@ -50,30 +53,42 @@ func (cCtx *cacheCtx) AnyClients() bool {
 	return anyClients
 }
 
-func (cCtx *cacheCtx) GetPartitions() []Partition {
+func (cCtx *cacheCtx) GetPartitions() []string {
 	cCtx.mutex.RLock()
 	defer cCtx.mutex.RUnlock()
-	p := make([]Partition, 0)
+	p := make([]string, 0)
 	for _, v := range cCtx.clients {
 		p = append(p, v)
 	}
 	return p
 }
 
-func (cCtx *cacheCtx) AddClient(hostname, queueName, routingKey string) {
-	h := hash(hostname)
+func (cCtx *cacheCtx) AddClient(hostname string) bool {
 	cCtx.mutex.Lock()
 	defer cCtx.mutex.Unlock()
-	cCtx.clients[h] = Partition{
-		QueueName:  queueName,
-		RoutingKey: routingKey,
+	routingKey, ok := cCtx.pending[hostname]
+	if !ok {
+		return false
 	}
+	h := hash(hostname)
+	cCtx.clients[h] = routingKey
 	cCtx.counter[h] = 0
+	delete(cCtx.pending, hostname)
+
+	anyClients = true
+
+	return true
+}
+
+func (cCtx *cacheCtx) AddPending(hostname, routingKey string) {
+	cCtx.mutex.Lock()
+	defer cCtx.mutex.Unlock()
+	cCtx.pending[hostname] = routingKey
 
 	anyClients = true
 }
 
-func (cCtx *cacheCtx) AssignToFreePartition(key string) Partition {
+func (cCtx *cacheCtx) AssignToFreePartition(key string) string {
 	c := math.MaxInt
 	cCtx.mutex.Lock()
 	defer cCtx.mutex.Unlock()
