@@ -6,6 +6,7 @@ import (
 	"github.com/dnsx2k/partymq/pkg/heartbeat"
 	"github.com/dnsx2k/partymq/pkg/helpers"
 	"github.com/dnsx2k/partymq/pkg/partition"
+	"github.com/dnsx2k/partymq/pkg/rabbit"
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
 )
@@ -26,7 +27,7 @@ func New(cache partition.Cache, heartbeat heartbeat.HeartBeater, logger *zap.Log
 func (c *HandlerCtx) RegisterRoute(router gin.IRouter) {
 	router.POST("/:hostname/bind", c.bind)
 	router.POST("/:hostname/ready", c.ready)
-	router.POST("/heartbeat/:hostname")
+	router.POST("/heartbeat/:hostname", c.beat)
 	router.POST("/unbind/:hostname", c.unbind)
 }
 
@@ -37,7 +38,7 @@ func (c *HandlerCtx) bind(cGin *gin.Context) {
 	c.cache.AddPending(hostname, routingKey)
 	c.logger.Info("client requested a binding", zap.String("hostname", hostname), zap.String("routing_key", routingKey))
 
-	cGin.JSON(http.StatusOK, gin.H{"routingKey": routingKey})
+	cGin.JSON(http.StatusOK, gin.H{"routingKey": routingKey, "exchange": rabbit.PartyMqExchange})
 }
 
 func (c *HandlerCtx) ready(cGin *gin.Context) {

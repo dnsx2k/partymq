@@ -36,7 +36,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	amqpOrchestrator, err := rabbit.Init(appCfg.RabbitConnectionString)
+	amqpOrchestrator, err := rabbit.Init(appCfg.RabbitConnectionString, logger)
 	if err != nil {
 		log.Fatal(err.Error())
 	}
@@ -60,7 +60,7 @@ func main() {
 		logger.Fatal(err.Error())
 	}
 
-	heartbeater := heartbeat.New(cache)
+	heartbeater := heartbeat.New(cache, logger)
 
 	// HTTP
 

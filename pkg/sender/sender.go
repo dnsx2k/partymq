@@ -29,13 +29,13 @@ func New(cache partition.Cache, pubCh *amqp.Channel, logger *zap.Logger) (Sender
 
 // Send - sends message on partition based on passed key
 func (srv *srvContext) Send(msg []byte, key string) (error, bool) {
-	part, ok := srv.cache.GetKey(key)
+	routingKey, ok := srv.cache.GetKey(key)
 	if !ok {
-		part = srv.cache.AssignToFreePartition(key)
+		routingKey = srv.cache.AssignToFreePartition(key)
 	}
 
 	pub := helpers.WrapAmqpPublishing(msg)
-	if err := srv.publishChan.Publish(rabbit.PartyMqExchange, part.RoutingKey, false, false, pub); err != nil {
+	if err := srv.publishChan.Publish(rabbit.PartyMqExchange, routingKey, false, false, pub); err != nil {
 		return err, true
 	}
 

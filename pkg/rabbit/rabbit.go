@@ -16,11 +16,11 @@ type amqpCtx struct {
 }
 
 // Init - initializes amqp connections, handles connection close notification
-func Init(url string) (AmqpOrchestrator, error) {
+func Init(url string, logger *zap.Logger) (AmqpOrchestrator, error) {
 	notifyCloseCh := make(chan *amqp.Error)
 	actx := amqpCtx{
 		connections: make(map[Direction]*amqp.Connection),
-		logger:      nil,
+		logger:      logger,
 	}
 	primConn, err := amqp.Dial(url)
 	if err != nil {
