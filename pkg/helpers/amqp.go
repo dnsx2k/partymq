@@ -3,7 +3,7 @@ package helpers
 import (
 	"time"
 
-	"github.com/streadway/amqp"
+	amqp "github.com/rabbitmq/amqp091-go"
 )
 
 // WrapAmqpPublishing - returns amqp publishing with msg inside

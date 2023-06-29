@@ -7,7 +7,7 @@ import (
 
 	"github.com/dnsx2k/partymq/pkg/rabbit"
 	"github.com/dnsx2k/partymq/pkg/sender"
-	"github.com/streadway/amqp"
+	amqp "github.com/rabbitmq/amqp091-go"
 	"go.uber.org/zap"
 )
 
