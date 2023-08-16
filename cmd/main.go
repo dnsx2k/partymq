@@ -9,9 +9,9 @@ import (
 	"sync"
 
 	"github.com/ardanlabs/conf/v3"
+	"github.com/dnsx2k/partymq/cmd/clientshttphandler"
 	"github.com/dnsx2k/partymq/cmd/config"
 	"github.com/dnsx2k/partymq/cmd/consumer"
-	"github.com/dnsx2k/partymq/cmd/partitionhttphandler"
 	"github.com/dnsx2k/partymq/pkg/heartbeat"
 	"github.com/dnsx2k/partymq/pkg/partition"
 	"github.com/dnsx2k/partymq/pkg/rabbit"
@@ -60,12 +60,12 @@ func main() {
 		logger.Fatal(err.Error())
 	}
 
-	heartbeater := heartbeat.New(cache, logger)
+	hc := heartbeat.New(cache, logger)
 
 	// HTTP
 
 	router := gin.Default()
-	handler := partitionhttphandler.New(cache, heartbeater, logger)
+	handler := clientshttphandler.New(cache, hc, logger)
 	handler.RegisterRoute(router)
 
 	go func() {

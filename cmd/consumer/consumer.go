@@ -35,14 +35,14 @@ func (cs *consumerCtx) Start(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+	fKey := fetchKeyFn(cs.source, cs.key)
 
 	go func() {
 		for {
-			var err error
 			select {
 			case msg := <-msgs:
-				if err = cs.process(msg); err != nil {
-					cs.logger.Error("error occurred while processing messages", zap.String("priority", "low"), zap.Error(err))
+				if err := cs.process(msg, fKey); err != nil {
+					cs.logger.Error("error occurred while processing message", zap.String("priority", "low"), zap.Error(err))
 				}
 			}
 			// TODO: Break on graceful shutdown :)
@@ -70,9 +70,8 @@ func (cs *consumerCtx) consume(queue, consumer string) (<-chan amqp.Delivery, er
 	return msgChan, nil
 }
 
-func (cs *consumerCtx) process(msg amqp.Delivery) error {
-	fetchKey := fetchKeyFn(cs.source, cs.key)
-	key, err := fetchKey(&msg)
+func (cs *consumerCtx) process(msg amqp.Delivery, fKey func(msg *amqp.Delivery) (string, error)) error {
+	key, err := fKey(&msg)
 	if err != nil {
 		_ = msg.Ack(false)
 		return err
