@@ -1,0 +1,11 @@
+### Bind client
+POST http://{{host}}:{{port}}/clients/client01/bind
+
+### Unbind client
+POST http://{{host}}:{{port}}/clients/client01/unbind
+
+### Client ready
+POST http://{{host}}:{{port}}/clients/client01/ready
+
+### Send heartbeat
+POST http://{{host}}:{{port}}/clients/client01/heartbeat

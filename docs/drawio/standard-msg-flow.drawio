@@ -1,0 +1,50 @@
+<mxfile host="app.diagrams.net" modified="2023-08-16T09:51:35.543Z" agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:109.0) Gecko/20100101 Firefox/116.0" etag="5W6VFRQbBflCYSa7rci7" version="21.6.8" type="device">
+  <diagram name="Page-1" id="XakMsqeHJLxYPTsxCujn">
+    <mxGraphModel dx="1434" dy="735" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="Aia7F3ab1PA0jKDDTDLM-3" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="Aia7F3ab1PA0jKDDTDLM-1" target="Aia7F3ab1PA0jKDDTDLM-2">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="Aia7F3ab1PA0jKDDTDLM-1" value="&lt;div style=&quot;font-family: &amp;quot;Menlo&amp;quot;, monospace; font-size: 9pt;&quot;&gt;source exchange&lt;br&gt;&lt;/div&gt;" style="ellipse;whiteSpace=wrap;html=1;aspect=fixed;fillColor=#fff2cc;strokeColor=#d6b656;" vertex="1" parent="1">
+          <mxGeometry x="100" y="120" width="120" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="Aia7F3ab1PA0jKDDTDLM-8" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" parent="1" source="Aia7F3ab1PA0jKDDTDLM-2">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="590" y="180" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="Aia7F3ab1PA0jKDDTDLM-11" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="Aia7F3ab1PA0jKDDTDLM-2" target="Aia7F3ab1PA0jKDDTDLM-6">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="500" y="180" />
+              <mxPoint x="500" y="70" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="Aia7F3ab1PA0jKDDTDLM-12" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="Aia7F3ab1PA0jKDDTDLM-2">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="590" y="290" as="targetPoint" />
+            <Array as="points">
+              <mxPoint x="500" y="180" />
+              <mxPoint x="500" y="290" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="Aia7F3ab1PA0jKDDTDLM-2" value="&lt;div style=&quot;font-family: &amp;quot;Menlo&amp;quot;, monospace; font-size: 9pt;&quot;&gt;queue&lt;br&gt;&lt;/div&gt;" style="shape=process;whiteSpace=wrap;html=1;backgroundOutline=1;fillColor=#fff2cc;strokeColor=#d6b656;" vertex="1" parent="1">
+          <mxGeometry x="290" y="150" width="180" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="Aia7F3ab1PA0jKDDTDLM-6" value="&lt;div style=&quot;font-family: &amp;quot;Menlo&amp;quot;, monospace; font-size: 9pt;&quot;&gt;Pod&lt;/div&gt;" style="ellipse;whiteSpace=wrap;html=1;aspect=fixed;fillColor=#fff2cc;strokeColor=#d6b656;" vertex="1" parent="1">
+          <mxGeometry x="590" y="30" width="80" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="Aia7F3ab1PA0jKDDTDLM-13" value="&lt;div style=&quot;font-family: &amp;quot;Menlo&amp;quot;, monospace; font-size: 9pt;&quot;&gt;Pod&lt;/div&gt;" style="ellipse;whiteSpace=wrap;html=1;aspect=fixed;fillColor=#fff2cc;strokeColor=#d6b656;" vertex="1" parent="1">
+          <mxGeometry x="590" y="140" width="80" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="Aia7F3ab1PA0jKDDTDLM-14" value="&lt;div style=&quot;font-family: &amp;quot;Menlo&amp;quot;, monospace; font-size: 9pt;&quot;&gt;Pod&lt;/div&gt;" style="ellipse;whiteSpace=wrap;html=1;aspect=fixed;fillColor=#fff2cc;strokeColor=#d6b656;" vertex="1" parent="1">
+          <mxGeometry x="590" y="250" width="80" height="80" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

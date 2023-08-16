@@ -1,5 +1,0 @@
-### Bind client
-POST http://{{host}}:{{port}}/bind/client01
-
-### Unbind client
-POST http://{{host}}:{{port}}/unbind/client01
