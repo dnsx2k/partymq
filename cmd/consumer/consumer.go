@@ -3,7 +3,6 @@ package consumer
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 
 	"github.com/dnsx2k/partymq/pkg/rabbit"
 	"github.com/dnsx2k/partymq/pkg/sender"
@@ -52,7 +51,6 @@ func (cs *consumerCtx) Start(ctx context.Context) error {
 	return nil
 }
 
-// consume
 func (cs *consumerCtx) consume(queue, consumer string) (<-chan amqp.Delivery, error) {
 	ch, err := cs.amqpOrchestrator.GetChannel(rabbit.DirectionSub)
 	if err != nil {
@@ -70,12 +68,8 @@ func (cs *consumerCtx) consume(queue, consumer string) (<-chan amqp.Delivery, er
 	return msgChan, nil
 }
 
-func (cs *consumerCtx) process(msg amqp.Delivery, fKey func(msg *amqp.Delivery) (string, error)) error {
-	key, err := fKey(&msg)
-	if err != nil {
-		_ = msg.Ack(false)
-		return err
-	}
+func (cs *consumerCtx) process(msg amqp.Delivery, fKey func(msg *amqp.Delivery) string) error {
+	key := fKey(&msg)
 
 	err, ok := cs.sender.Send(msg.Body, key)
 	if err != nil {
@@ -93,31 +87,29 @@ func (cs *consumerCtx) process(msg amqp.Delivery, fKey func(msg *amqp.Delivery) 
 	return nil
 }
 
-func fetchKeyFn(source, key string) func(msg *amqp.Delivery) (string, error) {
+func fetchKeyFn(source, key string) func(msg *amqp.Delivery) string {
 	switch source {
 	case "header":
-		return func(msg *amqp.Delivery) (string, error) {
+		return func(msg *amqp.Delivery) string {
 			h, ok := msg.Headers[key]
 			if !ok {
-				return "", fmt.Errorf("headers do not contains such key:%s", key)
+				return ""
 			}
 			keyStr, ok := h.(string)
 			if !ok {
-				return "", fmt.Errorf("value under: %s can not be converted into string", key)
 			}
-			return keyStr, nil
+			return keyStr
 		}
 	case "body":
-		return func(msg *amqp.Delivery) (string, error) {
+		return func(msg *amqp.Delivery) string {
 			m := map[string]any{}
 			if err := json.Unmarshal(msg.Body, &m); err != nil {
-				return "", err
+				return ""
 			}
 			keyStr, ok := m[key].(string)
 			if !ok {
-				return "", fmt.Errorf("value under: %s can not be converted into string", key)
 			}
-			return keyStr, nil
+			return keyStr
 		}
 	}
 

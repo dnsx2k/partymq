@@ -41,6 +41,15 @@ func NewCache() Cache {
 func (cCtx *cacheCtx) GetKey(key string) (string, bool) {
 	cCtx.mutex.RLock()
 	defer cCtx.mutex.RUnlock()
+
+	// return random partition if there's no key
+	if key == "" {
+		// map iteration will return different result each time, so we can consider as random partition
+		for _, v := range cCtx.clients {
+			return v, true
+		}
+	}
+
 	h, ok := cCtx.keys[key]
 	if !ok {
 		return "", false
