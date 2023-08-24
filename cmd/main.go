@@ -6,7 +6,9 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"sync"
+	"os/signal"
+	"syscall"
+	"time"
 
 	"github.com/ardanlabs/conf/v3"
 	"github.com/dnsx2k/partymq/cmd/clientshttphandler"
@@ -56,7 +58,9 @@ func main() {
 	// AMQP
 
 	partyConsumer := consumer.New(amqpOrchestrator, senderSrv, logger, appCfg.KeyConfig.Source, appCfg.KeyConfig.Key)
-	if err := partyConsumer.Start(context.Background()); err != nil {
+	doneCh := make(chan struct{})
+	ctx := context.Background()
+	if err := partyConsumer.Start(ctx, doneCh); err != nil {
 		logger.Fatal(err.Error())
 	}
 
@@ -74,8 +78,18 @@ func main() {
 		}
 	}()
 
-	//TODO: Graceful shutdown
-	wg := sync.WaitGroup{}
-	wg.Add(1)
-	wg.Wait()
+	shutdown(doneCh, 10*time.Second)
+}
+
+func shutdown(doneCh chan struct{}, timeout time.Duration) {
+	interruptChan := make(chan os.Signal)
+	signal.Notify(interruptChan, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
+
+	<-interruptChan
+	signal.Stop(interruptChan)
+
+	doneCh <- struct{}{}
+
+	// TODO: Do it with context
+	<-time.After(timeout)
 }

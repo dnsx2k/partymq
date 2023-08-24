@@ -8,8 +8,13 @@ import (
 
 var anyClients = false
 
+var (
+	ErrClientNotFound = errors.New("client not found")
+)
+
 type Cache interface {
-	GetKey(key string) (string, bool)
+	GetKey(key string) (string, error)
+
 	AnyClients() bool
 	GetPartitions() []string
 	AddClient(hostname string) bool
@@ -38,24 +43,28 @@ func NewCache() Cache {
 	return &cCtx
 }
 
-func (cCtx *cacheCtx) GetKey(key string) (string, bool) {
+func (cCtx *cacheCtx) GetKey(key string) (string, error) {
 	cCtx.mutex.RLock()
 	defer cCtx.mutex.RUnlock()
+
+	if len(cCtx.clients) == 0 {
+		return "", ErrClientNotFound
+	}
 
 	// return random partition if there's no key
 	if key == "" {
 		// map iteration will return different result each time, so we can consider as random partition
 		for _, v := range cCtx.clients {
-			return v, true
+			return v, nil
 		}
 	}
 
 	h, ok := cCtx.keys[key]
 	if !ok {
-		return "", false
+		return "", nil
 	}
 
-	return cCtx.clients[h], true
+	return cCtx.clients[h], nil
 }
 
 func (cCtx *cacheCtx) AnyClients() bool {

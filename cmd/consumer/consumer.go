@@ -3,7 +3,9 @@ package consumer
 import (
 	"context"
 	"encoding/json"
+	"time"
 
+	"github.com/dnsx2k/partymq/pkg/partition"
 	"github.com/dnsx2k/partymq/pkg/rabbit"
 	"github.com/dnsx2k/partymq/pkg/sender"
 	amqp "github.com/rabbitmq/amqp091-go"
@@ -29,7 +31,7 @@ func New(amqpOrch rabbit.AmqpOrchestrator, sender sender.Sender, logger *zap.Log
 	}
 }
 
-func (cs *consumerCtx) Start(ctx context.Context) error {
+func (cs *consumerCtx) Start(ctx context.Context, doneCh chan struct{}) error {
 	msgs, err := cs.consume(rabbit.PartyMqBufferQueue, "party-mq")
 	if err != nil {
 		return err
@@ -40,11 +42,25 @@ func (cs *consumerCtx) Start(ctx context.Context) error {
 		for {
 			select {
 			case msg := <-msgs:
-				if err := cs.process(msg, fKey); err != nil {
-					cs.logger.Error("error occurred while processing message", zap.String("priority", "low"), zap.Error(err))
+				key := fKey(&msg)
+
+				if err := cs.sender.Send(ctx, msg.Body, key); err != nil {
+					switch err {
+					case partition.ErrClientNotFound:
+						// 'long-pooling' also could be done with pausing msg delivery by ch.Flow(false)
+						time.Sleep(10 * time.Second)
+						_ = msg.Reject(true)
+						continue
+					default:
+						cs.logger.Error("error occurred while processing message", zap.String("priority", "low"), zap.Error(err))
+						_ = msg.Nack(false, true)
+						continue
+					}
 				}
+				_ = msg.Ack(false)
+			case <-doneCh:
+				return
 			}
-			// TODO: Break on graceful shutdown :)
 		}
 	}()
 
@@ -68,25 +84,6 @@ func (cs *consumerCtx) consume(queue, consumer string) (<-chan amqp.Delivery, er
 	return msgChan, nil
 }
 
-func (cs *consumerCtx) process(msg amqp.Delivery, fKey func(msg *amqp.Delivery) string) error {
-	key := fKey(&msg)
-
-	err, ok := cs.sender.Send(msg.Body, key)
-	if err != nil {
-		_ = msg.Ack(false)
-		return err
-	}
-	if !ok {
-		return nil
-	}
-
-	if err = msg.Ack(false); err != nil {
-		return err
-	}
-
-	return nil
-}
-
 func fetchKeyFn(source, key string) func(msg *amqp.Delivery) string {
 	switch source {
 	case "header":
@@ -97,6 +94,7 @@ func fetchKeyFn(source, key string) func(msg *amqp.Delivery) string {
 			}
 			keyStr, ok := h.(string)
 			if !ok {
+				return ""
 			}
 			return keyStr
 		}
@@ -108,6 +106,7 @@ func fetchKeyFn(source, key string) func(msg *amqp.Delivery) string {
 			}
 			keyStr, ok := m[key].(string)
 			if !ok {
+				return ""
 			}
 			return keyStr
 		}
