@@ -5,6 +5,7 @@ go 1.18
 require (
 	github.com/ardanlabs/conf/v3 v3.1.5
 	github.com/gin-gonic/gin v1.7.4
+	github.com/google/uuid v1.3.1
 	github.com/rabbitmq/amqp091-go v1.8.1
 	go.uber.org/zap v1.21.0
 )

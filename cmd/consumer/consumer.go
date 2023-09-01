@@ -16,27 +16,29 @@ type consumerCtx struct {
 	amqpOrchestrator rabbit.AmqpOrchestrator
 	sender           sender.Sender
 	logger           *zap.Logger
-	source           string
-	key              string
+	queue            string
+	keySource        string
+	keyName          string
 }
 
 // New - creation function
-func New(amqpOrch rabbit.AmqpOrchestrator, sender sender.Sender, logger *zap.Logger, source, key string) *consumerCtx {
+func New(amqpOrch rabbit.AmqpOrchestrator, sender sender.Sender, logger *zap.Logger, queue, keySource, keyName string) *consumerCtx {
 	return &consumerCtx{
 		amqpOrchestrator: amqpOrch,
 		sender:           sender,
 		logger:           logger,
-		source:           source,
-		key:              key,
+		queue:            queue,
+		keySource:        keySource,
+		keyName:          keyName,
 	}
 }
 
 func (cs *consumerCtx) Start(ctx context.Context, doneCh chan struct{}) error {
-	msgs, err := cs.consume(rabbit.PartyMqBufferQueue, "party-mq")
+	msgs, err := cs.consume(cs.queue, "party-mq")
 	if err != nil {
 		return err
 	}
-	fKey := fetchKeyFn(cs.source, cs.key)
+	fKey := fetchKeyFn(cs.keySource, cs.keyName)
 
 	go func() {
 		for {

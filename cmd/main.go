@@ -19,6 +19,7 @@ import (
 	"github.com/dnsx2k/partymq/pkg/rabbit"
 	"github.com/dnsx2k/partymq/pkg/sender"
 	"github.com/gin-gonic/gin"
+	amqp "github.com/rabbitmq/amqp091-go"
 	"go.uber.org/zap"
 )
 
@@ -43,7 +44,7 @@ func main() {
 		log.Fatal(err.Error())
 	}
 
-	if err = amqpOrchestrator.CreateResources(appCfg.Source.Exchange, appCfg.Source.Key); err != nil {
+	if err = amqpOrchestrator.CreateExchange(rabbit.PartyMqExchange, amqp.ExchangeDirect); err != nil {
 		log.Fatal(err.Error())
 	}
 
@@ -57,7 +58,7 @@ func main() {
 
 	// AMQP
 
-	partyConsumer := consumer.New(amqpOrchestrator, senderSrv, logger, appCfg.KeyConfig.Source, appCfg.KeyConfig.Key)
+	partyConsumer := consumer.New(amqpOrchestrator, senderSrv, logger, appCfg.SourceQueue, appCfg.KeyConfig.Source, appCfg.KeyConfig.Key)
 	doneCh := make(chan struct{})
 	ctx := context.Background()
 	if err := partyConsumer.Start(ctx, doneCh); err != nil {
@@ -78,10 +79,11 @@ func main() {
 		}
 	}()
 
-	shutdown(doneCh, 10*time.Second)
+	shutdown(doneCh, logger, 10*time.Second)
 }
 
-func shutdown(doneCh chan struct{}, timeout time.Duration) {
+// TODO: Improve
+func shutdown(doneCh chan struct{}, logger *zap.Logger, timeout time.Duration) {
 	interruptChan := make(chan os.Signal)
 	signal.Notify(interruptChan, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
 
@@ -90,6 +92,7 @@ func shutdown(doneCh chan struct{}, timeout time.Duration) {
 
 	doneCh <- struct{}{}
 
-	// TODO: Do it with context
 	<-time.After(timeout)
+
+	logger.Info("Service exiting")
 }

@@ -6,7 +6,7 @@ import (
 )
 
 type AmqpOrchestrator interface {
-	CreateResources(sourceExchange, sourceRouting string) error
+	CreateExchange(exchange, kind string) error
 	GetChannel(d Direction) (*amqp.Channel, error)
 }
 
@@ -48,21 +48,15 @@ func Init(url string, logger *zap.Logger) (AmqpOrchestrator, error) {
 	return &actx, nil
 }
 
-// CreateResources - creates necessary amqp resources
-func (ac *amqpCtx) CreateResources(sourceExchange, sourceRouting string) error {
+// CreateExchange - creates exchange through amqp
+func (ac *amqpCtx) CreateExchange(exchange, kind string) error {
 	ch, err := ac.connections[DirectionPrimary].Channel()
 	if err != nil {
 		return err
 	}
 	defer ch.Close()
 
-	if err = ch.ExchangeDeclare(PartyMqExchange, amqp.ExchangeDirect, false, true, false, false, nil); err != nil {
-		return err
-	}
-	if _, err = ch.QueueDeclare(PartyMqBufferQueue, false, false, false, false, nil); err != nil {
-		return err
-	}
-	if err = ch.QueueBind(PartyMqBufferQueue, sourceRouting, sourceExchange, true, nil); err != nil {
+	if err = ch.ExchangeDeclare(exchange, kind, false, true, false, false, nil); err != nil {
 		return err
 	}
 

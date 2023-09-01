@@ -1,8 +1,7 @@
 package rabbit
 
 const (
-	PartyMqBufferQueue string = "partymq.q.buffer"
-	PartyMqExchange    string = "partymq.ex.write"
+	PartyMqExchange string = "partymq.ex.write"
 )
 
 // Direction - type for amqp connection - PUB/SUB/PRIMARY

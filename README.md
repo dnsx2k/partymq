@@ -1,3 +1,5 @@
+# Description
+
 # [WIP] PartyMQ - dynamic partitioning with RabbitMQ
 
 PartyMQ is an innovative backend application that extends the capabilities of the RabbitMQ message broker,
