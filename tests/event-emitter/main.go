@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"math/rand"
 	"os"
-	"sync"
 	"time"
 
 	"github.com/google/uuid"
@@ -15,6 +14,8 @@ import (
 )
 
 var idPool []string
+
+var num = 1
 
 func main() {
 	num := flag.Int("n", 1000, "Number of messages to be emitted.")
@@ -56,25 +57,10 @@ func main() {
 
 	start := time.Now()
 
-	emitPerRoutine := 1000
-	routines := *num / emitPerRoutine
-	if routines == 0 {
-		routines = 1
-		emitPerRoutine = *num
-	}
-
 	ctx := context.Background()
-	wg := sync.WaitGroup{}
-	for i := 0; i < routines; i++ {
-		wg.Add(1)
-		go func() {
-			for j := 0; j < emitPerRoutine; j++ {
-				_ = emit(ctx, ch, *exchange)
-			}
-			wg.Done()
-		}()
+	for j := 0; j < *num; j++ {
+		_ = emit(ctx, ch, *exchange)
 	}
-	wg.Wait()
 
 	// make sure that we sent exact amount of messages
 	time.Sleep(1 * time.Second)
@@ -108,7 +94,8 @@ func emit(ctx context.Context, ch *amqp.Channel, exchange string) error {
 
 	msg := map[string]interface{}{
 		"id":          ID,
-		"name":        "Neque porro quisquam est qui dolorem ipsum quia dolor sit amet, consectetur, adipisci velit",
+		"num":         num,
+		"name":        fmt.Sprintf("%s+random:%v", "Neque porro quisquam est qui dolorem ipsum quia dolor sit amet, consectetur, adipisci velit"),
 		"description": "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Mauris vehicula interdum neque et sollicitudin. Nunc tincidunt sem ut nisi efficitur, eu ullamcorper augue ullamcorper. Proin iaculis arcu lectus, sed faucibus tortor aliquet vel. Nulla egestas purus erat, quis rhoncus lorem dictum fringilla. Maecenas quis ultricies justo, ac malesuada ligula. Nunc a ligula eget nisi elementum sodales. Curabitur eleifend sit amet ex a fringilla. Proin consectetur eu eros id mollis. Ut sed facilisis tellus, vel imperdiet odio. In pretium dolor lectus, vel iaculis tortor tincidunt sit amet. Vivamus varius nisi eu. ",
 	}
 	body, _ := json.Marshal(msg)
@@ -119,6 +106,7 @@ func emit(ctx context.Context, ch *amqp.Channel, exchange string) error {
 	if err != nil {
 		return err
 	}
+	num++
 
 	return nil
 }
