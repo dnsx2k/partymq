@@ -17,7 +17,8 @@ type srvContext struct {
 }
 
 type Sender interface {
-	Send(ctx context.Context, msg []byte, key string) error
+	Send(ctx context.Context, msg []byte, headers amqp.Table, key string) error
+	Ready() bool
 }
 
 // New - creation function for PartyOrchestrator
@@ -29,18 +30,22 @@ func New(cache partition.Cache, pubCh *amqp.Channel, logger *zap.Logger) (Sender
 	}, nil
 }
 
+func (srv *srvContext) Ready() bool {
+	return srv.cache.AnyClients()
+}
+
 // Send - sends message on partition based on passed key
-func (srv *srvContext) Send(ctx context.Context, msg []byte, key string) error {
-	routingKey, err := srv.cache.GetKey(key)
+func (srv *srvContext) Send(ctx context.Context, msg []byte, headers amqp.Table, key string) error {
+	routingKey, err := srv.cache.GetRoutingKey(key)
 	if err != nil {
 		return err
 	}
-
 	if routingKey == "" {
 		routingKey = srv.cache.AssignToFreePartition(key)
 	}
 
 	pub := helpers.WrapAmqpPublishing(msg)
+	pub.Headers = headers
 	if err := srv.publishChan.PublishWithContext(ctx, rabbit.PartyMqExchange, routingKey, false, false, pub); err != nil {
 		return err
 	}
