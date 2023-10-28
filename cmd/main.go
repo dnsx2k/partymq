@@ -61,9 +61,13 @@ func main() {
 	partyConsumer := consumer.New(amqpOrchestrator, senderSrv, logger, appCfg.SourceQueue, appCfg.KeyConfig.Source, appCfg.KeyConfig.Key)
 	doneCh := make(chan struct{})
 	ctx := context.Background()
-	if err := partyConsumer.Start(ctx, doneCh); err != nil {
-		logger.Fatal(err.Error())
-	}
+	// TODO: handle error in different way
+	go func() {
+		if err := partyConsumer.Consume(ctx, doneCh); err != nil {
+			logger.Fatal(err.Error())
+		}
+	}()
+	go partyConsumer.CheckState()
 
 	hc := heartbeat.New(cache, logger)
 

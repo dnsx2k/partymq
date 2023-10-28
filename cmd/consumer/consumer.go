@@ -12,6 +12,11 @@ import (
 	"go.uber.org/zap"
 )
 
+// TODO:
+// 1. Check start/stop: starts when anyClient [X], stops when noClient [X], consumes messages after start [X], consumers messages after start, stop, start [X]
+
+var running = false
+
 type consumerCtx struct {
 	amqpOrchestrator rabbit.AmqpOrchestrator
 	sender           sender.Sender
@@ -19,71 +24,94 @@ type consumerCtx struct {
 	queue            string
 	keySource        string
 	keyName          string
+	start            chan struct{}
+	stop             chan struct{}
 }
 
 // New - creation function
 func New(amqpOrch rabbit.AmqpOrchestrator, sender sender.Sender, logger *zap.Logger, queue, keySource, keyName string) *consumerCtx {
-	return &consumerCtx{
+	cctx := &consumerCtx{
 		amqpOrchestrator: amqpOrch,
 		sender:           sender,
 		logger:           logger,
 		queue:            queue,
 		keySource:        keySource,
 		keyName:          keyName,
+		start:            make(chan struct{}, 1),
+		stop:             make(chan struct{}, 1),
 	}
+	return cctx
 }
 
-func (cs *consumerCtx) Start(ctx context.Context, doneCh chan struct{}) error {
-	msgs, err := cs.consume(cs.queue, "party-mq")
-	if err != nil {
-		return err
-	}
-	fKey := fetchKeyFn(cs.keySource, cs.keyName)
-
-	go func() {
-		for {
-			select {
-			case msg := <-msgs:
-				key := fKey(&msg)
-
-				if err := cs.sender.Send(ctx, msg.Body, key); err != nil {
-					switch err {
-					case partition.ErrClientNotFound:
-						// 'long-pooling' also could be done with pausing msg delivery by ch.Flow(false)
-						time.Sleep(10 * time.Second)
-						_ = msg.Reject(true)
-						continue
-					default:
-						cs.logger.Error("error occurred while processing message", zap.String("priority", "low"), zap.Error(err))
-						_ = msg.Nack(false, true)
-						continue
-					}
-				}
-				_ = msg.Ack(false)
-			case <-doneCh:
-				return
+func (cs *consumerCtx) CheckState() {
+	for {
+		<-time.After(10 * time.Second)
+		if cs.sender.Ready() && !running {
+			cs.start <- struct{}{}
+		} else {
+			if !cs.sender.Ready() && running {
+				cs.stop <- struct{}{}
 			}
 		}
-	}()
-
-	return nil
+	}
 }
 
-func (cs *consumerCtx) consume(queue, consumer string) (<-chan amqp.Delivery, error) {
-	ch, err := cs.amqpOrchestrator.GetChannel(rabbit.DirectionSub)
-	if err != nil {
-		return nil, err
+func (cs *consumerCtx) Consume(ctx context.Context, exit chan struct{}) error {
+	fKey := fetchKeyFn(cs.keySource, cs.keyName)
+	var consumerChan *amqp.Channel
+	for {
+		select {
+		case <-cs.start:
+			ch, err := cs.amqpOrchestrator.GetChannel(rabbit.DirectionSub)
+			if err != nil {
+				return err
+			}
+			consumerChan = ch
+
+			if err = ch.Qos(10, 0, false); err != nil {
+				return err
+			}
+			msgs, err := ch.Consume(cs.queue, "party-mq", false, false, false, false, nil)
+			if err != nil {
+				return err
+			}
+			go func() {
+				running = true
+				for {
+					select {
+					case msg := <-msgs:
+						key := fKey(&msg)
+						// amqp lib will spam with nil messages
+						if msg.Body == nil {
+							time.Sleep(1 * time.Second)
+							continue
+						}
+						if err := cs.sender.Send(ctx, msg.Body, msg.Headers, key); err != nil {
+							switch err {
+							// consumer should disconnect while there is no client, but with 10sec gap it is still possible
+							case partition.ErrClientNotFound:
+								_ = msg.Reject(true)
+								continue
+							default:
+								cs.logger.Error("error occurred while processing message", zap.String("priority", "low"), zap.Error(err))
+								_ = msg.Nack(false, true)
+								continue
+							}
+						}
+						_ = msg.Ack(false)
+					case <-exit:
+						_ = consumerChan.Cancel("party-mq", true)
+						return
+					}
+				}
+			}()
+		case <-cs.stop:
+			_ = consumerChan.Cancel("party-mq", true)
+			running = false
+		}
 	}
 
-	if err = ch.Qos(10, 0, false); err != nil {
-		return nil, err
-	}
-	msgChan, err := ch.Consume(queue, consumer, false, false, false, false, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	return msgChan, nil
+	return nil
 }
 
 func fetchKeyFn(source, key string) func(msg *amqp.Delivery) string {
