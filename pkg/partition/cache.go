@@ -1,6 +1,7 @@
 package partition
 
 import (
+	"errors"
 	"hash/fnv"
 	"math"
 	"sync"
@@ -13,22 +14,31 @@ var (
 )
 
 type Cache interface {
-	GetKey(key string) (string, error)
+	GetRoutingKey(key string) (string, error)
+	GetPartitions() []string
+
+	AddPending(hostname, routingKey string)
+	AddReady(hostname string) bool
 
 	AnyClients() bool
-	GetPartitions() []string
-	AddClient(hostname string) bool
-	AddPending(hostname, routingKey string)
+
 	AssignToFreePartition(key string) string
 	Delete(hostname string)
 }
 
 type cacheCtx struct {
-	keys    map[string]uint32
+	// all keys, ids etc from header or body, value is host hash
+	keys map[string]uint32
+
 	counter map[uint32]int
+
+	// hold hash of hostname and routing key
 	clients map[uint32]string
+
+	// TODO: Remove old entries from pending
 	pending map[string]string
-	mutex   sync.RWMutex
+
+	mutex sync.RWMutex
 }
 
 func NewCache() Cache {
@@ -43,7 +53,7 @@ func NewCache() Cache {
 	return &cCtx
 }
 
-func (cCtx *cacheCtx) GetKey(key string) (string, error) {
+func (cCtx *cacheCtx) GetRoutingKey(key string) (string, error) {
 	cCtx.mutex.RLock()
 	defer cCtx.mutex.RUnlock()
 
@@ -81,7 +91,13 @@ func (cCtx *cacheCtx) GetPartitions() []string {
 	return p
 }
 
-func (cCtx *cacheCtx) AddClient(hostname string) bool {
+func (cCtx *cacheCtx) AddPending(hostname, routingKey string) {
+	cCtx.mutex.Lock()
+	defer cCtx.mutex.Unlock()
+	cCtx.pending[hostname] = routingKey
+}
+
+func (cCtx *cacheCtx) AddReady(hostname string) bool {
 	cCtx.mutex.Lock()
 	defer cCtx.mutex.Unlock()
 	routingKey, ok := cCtx.pending[hostname]
@@ -92,18 +108,9 @@ func (cCtx *cacheCtx) AddClient(hostname string) bool {
 	cCtx.clients[h] = routingKey
 	cCtx.counter[h] = 0
 	delete(cCtx.pending, hostname)
-
 	anyClients = true
 
 	return true
-}
-
-func (cCtx *cacheCtx) AddPending(hostname, routingKey string) {
-	cCtx.mutex.Lock()
-	defer cCtx.mutex.Unlock()
-	cCtx.pending[hostname] = routingKey
-
-	anyClients = true
 }
 
 func (cCtx *cacheCtx) AssignToFreePartition(key string) string {
@@ -125,6 +132,9 @@ func (cCtx *cacheCtx) AssignToFreePartition(key string) string {
 
 func (cCtx *cacheCtx) Delete(hostname string) {
 	cCtx.delete(hostname)
+	if len(cCtx.clients) == 0 {
+		anyClients = false
+	}
 }
 
 func (cCtx *cacheCtx) delete(hostname string) {
