@@ -1,4 +1,4 @@
-# Description
+![logo.png](docs%2Flogo.png)
 
 # [WIP] PartyMQ - dynamic partitioning with RabbitMQ
 
