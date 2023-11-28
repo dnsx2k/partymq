@@ -1,5 +1,7 @@
 ![logo.png](docs%2Flogo.png)
 
+![Gitlab](https://gitlab.com/dnsx2k1/partymq/badges/master/pipeline.svg)
+
 # [WIP] PartyMQ - dynamic partitioning with RabbitMQ
 
 PartyMQ is an innovative backend application that extends the capabilities of the RabbitMQ message broker,
