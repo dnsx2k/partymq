@@ -1,13 +1,10 @@
-package main
+package test
 
 import (
 	"encoding/json"
-	"flag"
 	"fmt"
 	"hash/fnv"
-	"os"
 	"sort"
-	"strings"
 
 	amqp "github.com/rabbitmq/amqp091-go"
 )
@@ -18,35 +15,23 @@ type meta struct {
 	num      int
 }
 
-// PASSED
-// (partitionCount, messageCount) (2, 500), (3, 5k), (3, 50k), (3, 100k), (3, 1m)
-func main() {
-	partitionStr := flag.String("partitions", "partition01;partition02;partition03", "partitions, separated by semicolon.")
-	amqpCs := flag.String("amqpCs", "amqp://guest:guest@127.0.0.1:5672", "RabbitMQ connection string.")
-	numOfMsg := flag.Int("numOfMsg", 1000000, "Number of messages")
+type Result struct {
+	DataComplete            bool
+	DataOrdered             bool
+	DataUniqe               bool
+	DataProperlyPartitioned bool
+}
 
-	rabbitMq, err := amqp.Dial(*amqpCs)
-	if err != nil {
-		fmt.Println(err.Error())
-	}
-
-	ch, err := rabbitMq.Channel()
-	if err != nil {
-		fmt.Println(err.Error())
-		os.Exit(1)
-	}
-
-	partitions := strings.Split(*partitionStr, ";")
-
+func Execute(channel *amqp.Channel, partitions []string, messagesVolume int) Result {
 	messages := make(map[string][]meta, 0)
 	for i := 0; i < len(partitions); i++ {
 		m := make([]meta, 0)
 
-		if err = ch.Qos(100, 0, false); err != nil {
+		if err := channel.Qos(100, 0, false); err != nil {
 			fmt.Println(err)
 		}
 		for {
-			d, ok, err := ch.Get(partitions[i], true)
+			d, ok, err := channel.Get(partitions[i], true)
 			if !ok {
 				break
 			}
@@ -71,28 +56,11 @@ func main() {
 		messages[partitions[i]] = m
 	}
 
-	if !dataIsOrdered(messages) {
-		fmt.Println("Data is not ordered!")
-	} else {
-		fmt.Println("Data is ordered")
-	}
-
-	if !dataIsComplete(messages, *numOfMsg) {
-		fmt.Println("Data incomplete!")
-	} else {
-		fmt.Println("Data is complete")
-	}
-
-	if !dataIsProperlyPartitioned(messages) {
-		fmt.Println("Data is not partitioned")
-	} else {
-		fmt.Println("Data is partitioned")
-	}
-
-	if !dataIsUnique(messages) {
-		fmt.Println("Data is not unique")
-	} else {
-		fmt.Println("Data is unique")
+	return Result{
+		DataComplete:            dataIsComplete(messages, messagesVolume),
+		DataOrdered:             dataIsOrdered(messages),
+		DataUniqe:               dataIsUnique(messages),
+		DataProperlyPartitioned: dataIsProperlyPartitioned(messages),
 	}
 }
 

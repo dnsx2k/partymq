@@ -1,0 +1,51 @@
+version: "3.8"
+
+networks:
+  some-development:
+    driver: bridge
+
+services:
+  rabbit:
+    image: rabbitmq:management
+    healthcheck:
+      test: rabbitmq-diagnostics -q ping
+      interval: 30s
+      timeout: 30s
+      retries: 5
+    volumes:
+      - ~/.docker-conf/rabbitmq/data/:/var/lib/rabbitmq/
+      - ~/.docker-conf/rabbitmq/log/:/var/log/rabbitmq
+    ports:
+      - 15672:15672
+      - 5672:5672
+    networks:
+      - some-development
+
+  party:
+    image: dnsx2k/partymq:latest
+    ports:
+      - 8085:8085
+    environment:
+      PARTYMQ_RABBIT_CS: "amqp://guest:guest@rabbit:5672"
+      PARTYMQ_SOURCE_QUEUE: "partymq.q.source"
+    restart: always
+    depends_on:
+      rabbit:
+        condition: service_healthy
+    links:
+      - rabbit
+    networks:
+      - some-development
+
+  tests:
+    image: dnsx2k/partymq-tests:latest
+    environment:
+      RABBIT_CS: "amqp://guest:guest@rabbit:5672"
+    restart: always
+    depends_on:
+      rabbit:
+        condition: service_healthy
+    links:
+      - rabbit
+    networks:
+      - some-development
