@@ -1,6 +1,6 @@
 module github.com/dnsx2k/partymq
 
-go 1.18
+go 1.21
 
 require (
 	github.com/ardanlabs/conf/v3 v3.1.5
