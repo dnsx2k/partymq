@@ -5,19 +5,20 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
 
 	"github.com/ardanlabs/conf/v3"
-	"github.com/dnsx2k/partymq/cmd/clientshttphandler"
-	"github.com/dnsx2k/partymq/cmd/config"
-	"github.com/dnsx2k/partymq/cmd/consumer"
-	"github.com/dnsx2k/partymq/pkg/heartbeat"
-	"github.com/dnsx2k/partymq/pkg/partition"
-	"github.com/dnsx2k/partymq/pkg/rabbit"
-	"github.com/dnsx2k/partymq/pkg/sender"
+	"github.com/dnsx2k/partymq/app/cmd/config"
+	"github.com/dnsx2k/partymq/app/cmd/consumer"
+	"github.com/dnsx2k/partymq/app/cmd/handlers"
+	"github.com/dnsx2k/partymq/app/pkg/heartbeat"
+	"github.com/dnsx2k/partymq/app/pkg/partition"
+	rabbit2 "github.com/dnsx2k/partymq/app/pkg/rabbit"
+	"github.com/dnsx2k/partymq/app/pkg/sender"
 	"github.com/gin-gonic/gin"
 	amqp "github.com/rabbitmq/amqp091-go"
 	"go.uber.org/zap"
@@ -39,16 +40,16 @@ func main() {
 		os.Exit(1)
 	}
 
-	amqpOrchestrator, err := rabbit.Init(appCfg.RabbitConnectionString, logger)
+	amqpOrchestrator, err := rabbit2.Init(appCfg.RabbitConnectionString, logger)
 	if err != nil {
 		log.Fatal(err.Error())
 	}
 
-	if err = amqpOrchestrator.CreateExchange(rabbit.PartyMqExchange, amqp.ExchangeDirect); err != nil {
+	if err = amqpOrchestrator.CreateExchange(rabbit2.PartyMqExchange, amqp.ExchangeDirect); err != nil {
 		log.Fatal(err.Error())
 	}
 
-	ch, err := amqpOrchestrator.GetChannel(rabbit.DirectionPub)
+	ch, err := amqpOrchestrator.GetChannel(rabbit2.DirectionPub)
 	if err != nil {
 		log.Fatal(err.Error())
 	}
@@ -74,11 +75,18 @@ func main() {
 	// HTTP
 
 	router := gin.Default()
-	handler := clientshttphandler.New(cache, hc, logger)
+	handler := handlers.New(cache, hc, logger)
 	handler.RegisterRoute(router)
 
+	// HC
+	router.Handle(http.MethodGet, "/health", func(c *gin.Context) {
+		c.Status(http.StatusOK)
+		fmt.Println("Service is healthy")
+		return
+	})
+
 	go func() {
-		if err := router.Run("127.0.0.1:8080"); err != nil {
+		if err := router.Run("0.0.0.0:8085"); err != nil {
 			fmt.Println(err.Error())
 		}
 	}()

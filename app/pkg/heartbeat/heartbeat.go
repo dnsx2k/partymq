@@ -4,7 +4,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/dnsx2k/partymq/pkg/partition"
+	"github.com/dnsx2k/partymq/app/pkg/partition"
 	"go.uber.org/zap"
 )
 
@@ -30,12 +30,12 @@ func New(cache partition.Cache, logger *zap.Logger) HeartBeater {
 		mutex:  sync.Mutex{},
 		logger: logger,
 	}
-	go func() {
-		for {
-			time.Sleep(checkInterval)
-			srvCtx.check()
-		}
-	}()
+	//go func() {
+	//	for {
+	//		time.Sleep(checkInterval)
+	//		srvCtx.check()
+	//	}
+	//}()
 
 	return &srvCtx
 }

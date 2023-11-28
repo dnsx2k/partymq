@@ -3,9 +3,9 @@ package sender
 import (
 	"context"
 
-	"github.com/dnsx2k/partymq/pkg/helpers"
-	"github.com/dnsx2k/partymq/pkg/partition"
-	"github.com/dnsx2k/partymq/pkg/rabbit"
+	"github.com/dnsx2k/partymq/app/pkg/helpers"
+	"github.com/dnsx2k/partymq/app/pkg/partition"
+	"github.com/dnsx2k/partymq/app/pkg/rabbit"
 	amqp "github.com/rabbitmq/amqp091-go"
 	"go.uber.org/zap"
 )

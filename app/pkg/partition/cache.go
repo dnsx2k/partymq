@@ -91,6 +91,7 @@ func (cCtx *cacheCtx) GetPartitions() []string {
 	return p
 }
 
+// AddPending TODO: Prevent from addind the same partition/client etc, return HTTP conflict
 func (cCtx *cacheCtx) AddPending(hostname, routingKey string) {
 	cCtx.mutex.Lock()
 	defer cCtx.mutex.Unlock()

@@ -3,22 +3,20 @@ package consumer
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"time"
 
-	"github.com/dnsx2k/partymq/pkg/partition"
-	"github.com/dnsx2k/partymq/pkg/rabbit"
-	"github.com/dnsx2k/partymq/pkg/sender"
+	"github.com/dnsx2k/partymq/app/pkg/partition"
+	rabbit2 "github.com/dnsx2k/partymq/app/pkg/rabbit"
+	"github.com/dnsx2k/partymq/app/pkg/sender"
 	amqp "github.com/rabbitmq/amqp091-go"
 	"go.uber.org/zap"
 )
 
-// TODO:
-// 1. Check start/stop: starts when anyClient [X], stops when noClient [X], consumes messages after start [X], consumers messages after start, stop, start [X]
-
 var running = false
 
 type consumerCtx struct {
-	amqpOrchestrator rabbit.AmqpOrchestrator
+	amqpOrchestrator rabbit2.AmqpOrchestrator
 	sender           sender.Sender
 	logger           *zap.Logger
 	queue            string
@@ -29,7 +27,7 @@ type consumerCtx struct {
 }
 
 // New - creation function
-func New(amqpOrch rabbit.AmqpOrchestrator, sender sender.Sender, logger *zap.Logger, queue, keySource, keyName string) *consumerCtx {
+func New(amqpOrch rabbit2.AmqpOrchestrator, sender sender.Sender, logger *zap.Logger, queue, keySource, keyName string) *consumerCtx {
 	cctx := &consumerCtx{
 		amqpOrchestrator: amqpOrch,
 		sender:           sender,
@@ -48,10 +46,8 @@ func (cs *consumerCtx) CheckState() {
 		<-time.After(10 * time.Second)
 		if cs.sender.Ready() && !running {
 			cs.start <- struct{}{}
-		} else {
-			if !cs.sender.Ready() && running {
-				cs.stop <- struct{}{}
-			}
+		} else if !cs.sender.Ready() && running {
+			cs.stop <- struct{}{}
 		}
 	}
 }
@@ -62,7 +58,7 @@ func (cs *consumerCtx) Consume(ctx context.Context, exit chan struct{}) error {
 	for {
 		select {
 		case <-cs.start:
-			ch, err := cs.amqpOrchestrator.GetChannel(rabbit.DirectionSub)
+			ch, err := cs.amqpOrchestrator.GetChannel(rabbit2.DirectionSub)
 			if err != nil {
 				return err
 			}
@@ -81,18 +77,17 @@ func (cs *consumerCtx) Consume(ctx context.Context, exit chan struct{}) error {
 					select {
 					case msg := <-msgs:
 						key := fKey(&msg)
-						// amqp lib will spam with nil messages
+						// hack: amqp lib will spam with nil messages
 						if msg.Body == nil {
 							time.Sleep(1 * time.Second)
 							continue
 						}
 						if err := cs.sender.Send(ctx, msg.Body, msg.Headers, key); err != nil {
-							switch err {
 							// consumer should disconnect while there is no client, but with 10sec gap it is still possible
-							case partition.ErrClientNotFound:
+							if errors.Is(err, partition.ErrClientNotFound) {
 								_ = msg.Reject(true)
 								continue
-							default:
+							} else {
 								cs.logger.Error("error occurred while processing message", zap.String("priority", "low"), zap.Error(err))
 								_ = msg.Nack(false, true)
 								continue
@@ -110,8 +105,6 @@ func (cs *consumerCtx) Consume(ctx context.Context, exit chan struct{}) error {
 			running = false
 		}
 	}
-
-	return nil
 }
 
 func fetchKeyFn(source, key string) func(msg *amqp.Delivery) string {
