@@ -1,0 +1,24 @@
+image: golang:latest
+
+.go-cache:
+  variables:
+    GOPATH: $CI_PROJECT_DIR/.go
+  cache:
+    paths:
+      - .go/pkg/mod/
+
+variables:
+  OUTPUT_NAME: __bin__/$CI_PROJECT_NAME
+
+stages:
+  - build
+
+build:
+  stage: build
+  script:
+    - mkdir -p $OUTPUT_NAME
+    - cd app/cmd
+    - go build -o $OUTPUT_NAME ./...
+  artifacts:
+    paths:
+      - $OUTPUT_NAME
