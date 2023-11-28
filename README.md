@@ -50,7 +50,7 @@ without disrupting ongoing message processing.
 
 1. Client sends POST request to PartyMQ API.
 
-[clients-http-handler-source-code](cmd/clientshttphandler/http.go)
+[clients-http-handler-source-code](app/cmd/clientshttphandler/http.go)
 
 2. Server responds with json payload:
 ```json
@@ -59,7 +59,7 @@ without disrupting ongoing message processing.
 
 Routing key generation based on provided hostname:
 
-[routing-key-generation-source-code](pkg/helpers/helpers.go)
+[routing-key-generation-source-code](app/pkg/helpers/helpers.go)
 
 3. Client declares queue and binds it to an exchange from json response.
 
