@@ -15,4 +15,4 @@ jobs:
         with:
           file: docker-compose.yml
           service: party
-          command: echo run
+          command: play.sh
