@@ -16,13 +16,7 @@ stages:
 build:
   stage: build
   script:
-    - mkdir -p $OUTPUT_NAME
-    - cd app/cmd
-    - go build -o $OUTPUT_NAME
+    - docker build -f app/Dockerfile -t dnsx2k/partymq:latest .
   artifacts:
     paths:
       - $OUTPUT_NAME
-
-test:
-  stage: test
-  script:
