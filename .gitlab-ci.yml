@@ -22,3 +22,7 @@ build:
   artifacts:
     paths:
       - $OUTPUT_NAME
+
+test:
+  stage: test
+  script:
