@@ -1,6 +1,6 @@
 ![logo.png](docs%2Flogo.png)
 
-[![Gitlab](https://gitlab.com/dnsx2k1/partymq/badges/master/pipeline.svg)](https://gitlab.com/dnsx2k1/partymq)
+[![Gitlab](https://gitlab.com/dnsx2k1/partymq/badges/master/pipeline.svg?key_text=build)](https://gitlab.com/dnsx2k1/partymq)
 
 # [WIP] PartyMQ - dynamic partitioning with RabbitMQ
 
