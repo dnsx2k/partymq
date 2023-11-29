@@ -1,6 +1,6 @@
 ![logo.png](docs%2Flogo.png)
 
-[![Gitlab](https://gitlab.com/dnsx2k1/partymq/badges/master/pipeline.svg?key_text=build)](https://gitlab.com/dnsx2k1/partymq)
+[![Gitlab](https://github.com/dnsx2k/partymq/actions/workflows/docker-image.yml/badge.svg)](https://github.com/dnsx2k/partymq)
 [![go.mod Go version](https://img.shields.io/github/go-mod/go-version/dnsx2k/partymq)](https://github.com/dnsx2k/partymq)
 [![Go Report Card](https://goreportcard.com/badge/github.com/dnsx2k/partymq)](https://goreportcard.com/report/github.com/dnsx2k/partymq)
 
