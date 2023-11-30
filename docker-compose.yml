@@ -39,6 +39,8 @@ services:
 
   tests:
     image: dnsx2k/partymq-tests:latest
+    ports:
+      - 8080:8080
     environment:
       RABBIT_CS: "amqp://guest:guest@rabbit:5672"
     restart: always
