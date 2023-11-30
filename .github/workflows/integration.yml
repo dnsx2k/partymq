@@ -13,4 +13,4 @@ jobs:
       - name: Tests
         with:
           file: docker-compose.yml
-          run: docker compose up
+        run: docker compose up
