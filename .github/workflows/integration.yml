@@ -11,6 +11,6 @@ jobs:
       options: --privileged
     steps:
       - name: Tests
+        run: docker compose up
         with:
           file: docker-compose.yml
-        run: docker compose up
