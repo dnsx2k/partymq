@@ -35,6 +35,5 @@ WORKDIR /apps
 COPY --from=builder --chown=appuser /out/partymq-tests .
 ENV GIN_MODE=release
 ENV LOG_SEVERITY=debug
-EXPOSE 8080
 
 ENTRYPOINT ["/apps/partymq-tests"]

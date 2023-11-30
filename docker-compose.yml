@@ -4,6 +4,7 @@ networks:
   some-development:
     driver: bridge
 
+name: partymq-project
 services:
   rabbit:
     image: rabbitmq:management
