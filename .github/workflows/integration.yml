@@ -10,8 +10,8 @@ jobs:
       image: docker:latest
       options: --privileged
     steps:
-      - name: Tests
-        uses: actions/checkout@v3
-        run: docker compose up
+      - uses: actions/checkout@v3
         with:
           file: docker-compose.yml
+      - name: Tests
+        run: docker compose up
