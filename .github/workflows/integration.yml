@@ -11,6 +11,8 @@ jobs:
       options: --privileged
     steps:
       - uses: actions/checkout@v3
-      - uses: indiesdev/curl@v1.1
-      - name: Tests
-        run: curl https://www.google.com
+      - name: Setup
+        run: docker compose up -d
+      - name: Test
+        run: docker run --network partymq_some_development appropriate/curl -s --retry 10 --retry-connrefused http://localhost:8080/run
+
