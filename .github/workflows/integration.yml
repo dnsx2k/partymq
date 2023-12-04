@@ -11,5 +11,5 @@ jobs:
       - name: Setup
         run: docker compose up -d
       - name: Test
-        run: docker network ls
+        run: docker run --network=partymq-project_some-development appropriate/curl -s --retry 10 --retry-connrefused http://localhost:8080/run
 
