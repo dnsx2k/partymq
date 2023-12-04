@@ -6,13 +6,10 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
-    container:
-      image: docker:latest
-      options: --privileged
     steps:
       - uses: actions/checkout@v3
       - name: Setup
         run: docker compose up -d
       - name: Test
-        run: docker run --network container:some-development appropriate/curl -s --retry 10 --retry-connrefused http://localhost:8080/run
+        run: docker run --network=partymq_some-development appropriate/curl -s --retry 10 --retry-connrefused http://localhost:8080/run
 
