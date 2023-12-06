@@ -47,7 +47,7 @@ without disrupting ongoing message processing.
 
 ### Partitioned message flow:
 
-![partitioned-msg-flow.drawio.png](docs%2Fpartitioned-msg-flow.drawio.png)
+![partitioned-msg-flow.drawio.svg](docs%2Fpartitioned-msg-flow.drawio.svg)
 
 ## Client binding flow:
 
