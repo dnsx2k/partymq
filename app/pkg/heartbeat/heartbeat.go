@@ -8,34 +8,32 @@ import (
 	"go.uber.org/zap"
 )
 
-// TODO: make it configurable
-var expireAfter = 120 * time.Second
-var checkInterval = 30 * time.Second
-
 type HeartBeater interface {
 	Beat(hostname string)
 }
 
 type srvContext struct {
-	cache  partition.Cache
-	expiry map[string]time.Time
-	mutex  sync.Mutex
-	logger *zap.Logger
+	cache     partition.Cache
+	expiry    map[string]time.Time
+	mutex     sync.Mutex
+	logger    *zap.Logger
+	clientTTL time.Duration
 }
 
-func New(cache partition.Cache, logger *zap.Logger) HeartBeater {
+func New(cache partition.Cache, logger *zap.Logger, clientTTL, checkInterval time.Duration) HeartBeater {
 	srvCtx := srvContext{
-		cache:  cache,
-		expiry: make(map[string]time.Time),
-		mutex:  sync.Mutex{},
-		logger: logger,
+		cache:     cache,
+		expiry:    make(map[string]time.Time),
+		mutex:     sync.Mutex{},
+		logger:    logger,
+		clientTTL: clientTTL,
 	}
-	//go func() {
-	//	for {
-	//		time.Sleep(checkInterval)
-	//		srvCtx.check()
-	//	}
-	//}()
+	go func() {
+		for {
+			<-time.After(checkInterval)
+			srvCtx.check()
+		}
+	}()
 
 	return &srvCtx
 }
@@ -44,7 +42,7 @@ func (srv *srvContext) Beat(hostname string) {
 	srv.mutex.Lock()
 	defer srv.mutex.Unlock()
 
-	srv.expiry[hostname] = time.Now().Add(expireAfter)
+	srv.expiry[hostname] = time.Now().Add(srv.clientTTL)
 }
 
 func (srv *srvContext) check() {

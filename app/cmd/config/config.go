@@ -11,4 +11,8 @@ type Config struct {
 		Source string `conf:"default:header,help:points to a source for fetching partition key, possible values are: header, body"`
 		Key    string `conf:"default:partitionKey,help:key for partitionKey value"`
 	}
+	HeartBeatConfig struct {
+		CheckInterval string `conf:"default:30s,help:duration, after this span background job will inspect whether clients are idle"`
+		ExpiresAfter  string `conf:"default:120s,help:duration, after this span client will be deleted if no heartbeat sent"`
+	}
 }
