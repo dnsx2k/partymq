@@ -17,8 +17,8 @@ type Cache interface {
 	GetRoutingKey(key string) (string, error)
 	GetPartitions() []string
 
-	AddPending(hostname, routingKey string)
-	AddReady(hostname string) bool
+	AddPending(hostname, routingKey string) error
+	AddReady(hostname string) error
 
 	AnyClients() bool
 
@@ -27,18 +27,11 @@ type Cache interface {
 }
 
 type cacheCtx struct {
-	// all keys, ids etc from header or body, value is host hash
-	keys map[string]uint32
-
+	keys    map[string]uint32
 	counter map[uint32]int
-
-	// hold hash of hostname and routing key
 	clients map[uint32]string
-
-	// TODO: Remove old entries from pending
 	pending map[string]string
-
-	mutex sync.RWMutex
+	mutex   sync.RWMutex
 }
 
 func NewCache() Cache {
@@ -91,27 +84,38 @@ func (cCtx *cacheCtx) GetPartitions() []string {
 	return p
 }
 
-// AddPending TODO: Prevent from addind the same partition/client etc, return HTTP conflict
-func (cCtx *cacheCtx) AddPending(hostname, routingKey string) {
+func (cCtx *cacheCtx) AddPending(hostname, routingKey string) error {
 	cCtx.mutex.Lock()
 	defer cCtx.mutex.Unlock()
+	if _, alreadyPending := cCtx.pending[hostname]; alreadyPending {
+		return errors.New("client already in pending status")
+	}
 	cCtx.pending[hostname] = routingKey
+
+	return nil
 }
 
-func (cCtx *cacheCtx) AddReady(hostname string) bool {
+func (cCtx *cacheCtx) AddReady(hostname string) error {
 	cCtx.mutex.Lock()
 	defer cCtx.mutex.Unlock()
+	h := hash(hostname)
+	if _, alreadyReady := cCtx.counter[h]; alreadyReady {
+		return errors.New("client already in ready status")
+	}
+
 	routingKey, ok := cCtx.pending[hostname]
 	if !ok {
-		return false
+		return errors.New("client not found in pending status")
 	}
-	h := hash(hostname)
+
 	cCtx.clients[h] = routingKey
 	cCtx.counter[h] = 0
 	delete(cCtx.pending, hostname)
-	anyClients = true
+	if !anyClients {
+		anyClients = true
+	}
 
-	return true
+	return nil
 }
 
 func (cCtx *cacheCtx) AssignToFreePartition(key string) string {

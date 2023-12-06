@@ -70,12 +70,19 @@ func main() {
 	}()
 	go partyConsumer.CheckState()
 
-	hc := heartbeat.New(cache, logger)
+	clientTTL, err := time.ParseDuration(appCfg.HeartBeatConfig.ExpiresAfter)
+	if err != nil {
+		logger.Error("can not parse duration client TTL, default values will be set", zap.Error(err))
+	}
+	checkInterval, err := time.ParseDuration(appCfg.HeartBeatConfig.CheckInterval)
+	if err != nil {
+		logger.Error("can not parse duration check interval, default values will be set", zap.Error(err))
+	}
+	heartBeat := heartbeat.New(cache, logger, clientTTL, checkInterval)
 
 	// HTTP
-
 	router := gin.Default()
-	handler := handlers.New(cache, hc, logger)
+	handler := handlers.New(cache, heartBeat, logger)
 	handler.RegisterRoute(router)
 
 	// HC

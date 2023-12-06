@@ -1,8 +1,6 @@
 package handlers
 
 import (
-	"errors"
-	"fmt"
 	"net/http"
 
 	"github.com/dnsx2k/partymq/app/pkg/heartbeat"
@@ -38,7 +36,10 @@ func (c *HandlerCtx) bind(cGin *gin.Context) {
 	hostname := cGin.Param("hostname")
 
 	routingKey := helpers.BuildRoutingKey(hostname)
-	c.cache.AddPending(hostname, routingKey)
+	if err := c.cache.AddPending(hostname, routingKey); err != nil {
+		cGin.JSON(http.StatusConflict, gin.H{"error": err.Error()})
+		return
+	}
 	c.logger.Info("client requested a binding", zap.String("hostname", hostname), zap.String("routing_key", routingKey))
 
 	cGin.JSON(http.StatusOK, gin.H{"routingKey": routingKey, "exchange": rabbit.PartyMqExchange})
@@ -47,8 +48,8 @@ func (c *HandlerCtx) bind(cGin *gin.Context) {
 func (c *HandlerCtx) ready(cGin *gin.Context) {
 	hostname := cGin.Param("hostname")
 
-	if ok := c.cache.AddReady(hostname); !ok {
-		cGin.AbortWithStatusJSON(http.StatusBadRequest, errors.New(fmt.Sprintf("host: %s not found in cache", hostname)))
+	if err := c.cache.AddReady(hostname); err != nil {
+		cGin.AbortWithStatusJSON(http.StatusConflict, gin.H{"error": err.Error()})
 		c.logger.Error("binding unsuccessful", zap.String("hostname", hostname))
 		return
 	}
