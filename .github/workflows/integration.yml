@@ -13,5 +13,5 @@ jobs:
       - name: Trigger
         run: docker run --network=partymq-project_some-development appropriate/curl -s --retry 10 --retry-connrefused -X POST http://tests:8080/run > results.json
       - name: Verify
-        run: ./verify.sh
+        run: ./tests/verify.sh
 
