@@ -110,6 +110,8 @@ func (cCtx *cacheCtx) AddReady(hostname string) error {
 
 	cCtx.clients[h] = routingKey
 	cCtx.counter[h] = 0
+	cCtx.rebalance(h)
+
 	delete(cCtx.pending, hostname)
 	if !anyClients {
 		anyClients = true
@@ -139,6 +141,23 @@ func (cCtx *cacheCtx) Delete(hostname string) {
 	cCtx.delete(hostname)
 	if len(cCtx.clients) == 0 {
 		anyClients = false
+	}
+}
+
+func (cCtx *cacheCtx) rebalance(hash uint32) {
+	cSum := 0
+	for k := range cCtx.counter {
+		cSum += cCtx.counter[k]
+	}
+	av := cSum / len(cCtx.clients)
+	for k, id := range cCtx.keys {
+		if av == 0 {
+			break
+		}
+		cCtx.keys[k] = hash
+		cCtx.counter[hash] += 1
+		cCtx.counter[id] -= 1
+		av--
 	}
 }
 
